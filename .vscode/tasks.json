@@ -1,0 +1,18 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Django: Run Development Server",
+			"type": "shell",
+			"command": "/Users/arshadaman/Desktop/RCS/.venv/bin/python",
+			"args": [
+				"manage.py",
+				"runserver",
+				"8000"
+			],
+			"group": "build",
+			"isBackground": true,
+			"problemMatcher": []
+		}
+	]
+}
