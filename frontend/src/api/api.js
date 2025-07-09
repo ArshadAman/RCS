@@ -19,56 +19,22 @@ function getAuthHeaders() {
   return token ? { 'Authorization': `Bearer ${token}` } : {};
 }
 
-// Generic API request handler
-export async function apiRequest(endpoint, method = 'GET', data = null, auth = false, isFormData = false) {
-  const headers = {
-    ...(!isFormData && { 'Content-Type': 'application/json' }),
-    ...(auth && getAuthHeaders()),
-  };
-
-  const options = {
-    method,
-    headers,
-  };
-
-  if (data) {
-    options.body = isFormData ? data : JSON.stringify(data);
-  }
-
-  try {
-    const res = await fetch(`${BASE_URL}${endpoint}`, options);
-    
-    if (res.status === 401) {
-      // Token invalid or expired: clear and redirect
-      if (window.location.pathname !== '/login') {
-        localStorage.removeItem('token');
-        window.location.href = '/login';
-      }
-      throw new Error('Unauthorized. Please log in again.');
+// Dummy API for local demo mode
+export const api = {
+  login: async ({ username, password }) => {
+    if (username === "admin" && password === "admin") {
+      return { token: "demo-token", user: { username: "admin", email: "admin@example.com", isAdmin: true } };
     }
-    if (!res.ok) {
-      const errorText = await res.text();
-      let errorMessage;
-      try {
-        const errorData = JSON.parse(errorText);
-        errorMessage = errorData.detail || errorData.message || Object.values(errorData).flat().join(', ');
-      } catch {
-        errorMessage = errorText || `HTTP ${res.status}`;
-      }
-      throw new Error(errorMessage);
-    }
-
-    // Handle empty responses (e.g., 204 No Content)
-    const contentType = res.headers.get('content-type');
-    if (contentType && contentType.includes('application/json')) {
-      return await res.json();
-    }
-    return null;
-  } catch (error) {
-    console.error(`API Error (${method} ${endpoint}):`, error);
-    throw error;
-  }
-}
+    throw new Error("Invalid credentials");
+  },
+  register: async () => ({}),
+  getProfile: async () => ({ username: "admin", email: "admin@example.com", isAdmin: true }),
+  updateProfile: async () => ({}),
+  changePassword: async () => ({}),
+  forgotPassword: async () => ({}),
+  resetPassword: async () => ({}),
+  // Add more dummy endpoints as needed for your UI
+};
 
 // ============================================================================
 // AUTHENTICATION ENDPOINTS

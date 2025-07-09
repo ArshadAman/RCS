@@ -1,38 +1,17 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { getUserCompanies } from '../api/api';
+import React, { createContext, useContext, useState } from 'react';
 
 const CompanyContext = createContext();
 
+// Demo mode: always provide a default company
+const demoCompanies = [
+  { id: 1, name: 'Demo Company', industry: 'Software', created_at: '2024-01-01' }
+];
+
 export function CompanyProvider({ children }) {
-  const [companies, setCompanies] = useState([]);
-  const [currentCompany, setCurrentCompany] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchCompanies() {
-      try {
-        setLoading(true);
-        const data = await getUserCompanies();
-        if (Array.isArray(data) && data.length > 0) {
-          setCompanies(data);
-          setCurrentCompany(data[0]);
-        } else {
-          setCompanies([]);
-          setCurrentCompany(null);
-        }
-      } catch (err) {
-        setCompanies([]);
-        setCurrentCompany(null);
-        // If unauthorized, api.js will redirect to login
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchCompanies();
-  }, []);
-
+  const [companies, setCompanies] = useState(demoCompanies);
+  // No API calls, always has at least one company
   return (
-    <CompanyContext.Provider value={{ companies, currentCompany, setCurrentCompany, loading }}>
+    <CompanyContext.Provider value={{ companies, setCompanies }}>
       {children}
     </CompanyContext.Provider>
   );

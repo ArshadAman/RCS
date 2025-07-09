@@ -4,7 +4,7 @@ import Landing from '../pages/Landing';
 import Auth from '../pages/Auth';
 import BusinessList from '../pages/BusinessList';
 import BusinessDetail from '../pages/BusinessDetail';
-import Profile from '../pages/Profile';
+import ProfilePage from '../pages/ProfilePage';
 import Admin from '../pages/Admin';
 import QRFeedback from '../pages/QRFeedback';
 import Dashboard from '../pages/Dashboard';
@@ -25,7 +25,7 @@ export default function AppRoutes() {
         <Route path="/reviews" element={<Reviews />} />
         <Route path="/surveys" element={<Surveys />} />
         <Route path="/widgets" element={<WidgetManager />} />
-        <Route path="/profile" element={<Profile />} />
+        <Route path="/profile" element={<ProfilePage />} />
         <Route path="/admin" element={<Admin />} />
         <Route path="/qr-feedback" element={<QRFeedback />} />
       </Routes>
