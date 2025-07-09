@@ -1,5 +1,10 @@
 from rest_framework import serializers
-from .models import Business, Review, ReviewImage, ReviewLike, Category, Company, Order, SurveyQuestion, Plan, Badge, QRFeedback, ReviewAnswer
+from django.db import transaction
+from .models import (
+    Business, Review, ReviewImage, ReviewLike, Category, Company, Order, 
+    SurveyQuestion, Plan, Badge, QRFeedback, ReviewAnswer, ReviewCriteria,
+    ReviewCriteriaRating, EmailTemplate, WidgetSettings
+)
 from authentication.serializers import UserProfileSerializer
 
 
@@ -89,7 +94,7 @@ class ReviewCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Review
         fields = (
-            'rating', 'title', 'content', 'reviewer_name',
+            'overall_rating', 'comment', 'reviewer_name',
             'reviewer_email', 'is_anonymous', 'images', 'answers'
         )
 
@@ -106,15 +111,60 @@ class ReviewCreateSerializer(serializers.ModelSerializer):
         return review
 
 
+class ReviewCriteriaRatingSerializer(serializers.ModelSerializer):
+    """Serializer for individual criteria ratings"""
+    
+    criteria_name = serializers.CharField(source='criteria.name', read_only=True)
+    
+    class Meta:
+        model = ReviewCriteriaRating
+        fields = ['criteria', 'criteria_name', 'rating']
+
+
+class PublicReviewSerializer(serializers.ModelSerializer):
+    """Serializer for public review submission and display"""
+    
+    criteria_ratings = ReviewCriteriaRatingSerializer(many=True, required=False)
+    
+    class Meta:
+        model = Review
+        fields = [
+            'id', 'overall_rating', 'would_recommend', 'comment',
+            'customer_name', 'customer_email', 'criteria_ratings',
+            'status', 'created_at'
+        ]
+        read_only_fields = ['id', 'status', 'created_at']
+    
+    @transaction.atomic
+    def create(self, validated_data):
+        criteria_ratings_data = validated_data.pop('criteria_ratings', [])
+        
+        # Set default values for required fields
+        if not validated_data.get('overall_rating'):
+            validated_data['overall_rating'] = 3
+        
+        # Create review
+        review = Review.objects.create(**validated_data)
+        
+        # Create criteria ratings
+        for rating_data in criteria_ratings_data:
+            ReviewCriteriaRating.objects.create(
+                review=review,
+                **rating_data
+            )
+        
+        return review
+
+
 class ReviewResponseSerializer(serializers.ModelSerializer):
     """Serializer for business response to review"""
     
     class Meta:
         model = Review
-        fields = ('response',)
+        fields = ('business_response',)
     
     def update(self, instance, validated_data):
-        instance.response = validated_data.get('response', instance.response)
+        instance.business_response = validated_data.get('business_response', instance.business_response)
         instance.save()
         return instance
 
@@ -146,14 +196,50 @@ class CompanySerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Company
-        fields = '__all__'
+        fields = [
+            'id', 'name', 'unique_id', 'logo', 'website', 'email', 
+            'phone_number', 'is_active', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['unique_id', 'created_at', 'updated_at']
+
+
+class ReviewCriteriaSerializer(serializers.ModelSerializer):
+    """Serializer for ReviewCriteria model"""
+    
+    class Meta:
+        model = ReviewCriteria
+        fields = ['id', 'name', 'is_active', 'order', 'created_at']
+        read_only_fields = ['created_at']
 
 
 class OrderSerializer(serializers.ModelSerializer):
-    """Serializer for Order model"""
+    """Serializer for Order model with review link generation"""
+    
+    review_url = serializers.ReadOnlyField()
     
     class Meta:
         model = Order
+        fields = [
+            'id', 'order_number', 'customer_email', 'customer_name',
+            'product_service_name', 'purchase_date', 'status', 'review_url',
+            'email_sent_at', 'created_at'
+        ]
+        read_only_fields = ['review_link_token', 'review_url', 'email_sent_at', 'created_at']
+
+
+class EmailTemplateSerializer(serializers.ModelSerializer):
+    """Serializer for EmailTemplate model"""
+    
+    class Meta:
+        model = EmailTemplate
+        fields = '__all__'
+
+
+class WidgetSettingsSerializer(serializers.ModelSerializer):
+    """Serializer for WidgetSettings model"""
+    
+    class Meta:
+        model = WidgetSettings
         fields = '__all__'
 
 
@@ -187,3 +273,4 @@ class QRFeedbackSerializer(serializers.ModelSerializer):
     class Meta:
         model = QRFeedback
         fields = '__all__'
+        read_only_fields = ['created_at', 'ip_address']

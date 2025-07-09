@@ -5995,3 +5995,16 @@ WARNING 2025-07-09 09:28:06,924 log 13322 6192951296 Unauthorized: /api/companie
 WARNING 2025-07-09 09:28:06,925 basehttp 13322 6192951296 "GET /api/companies/ HTTP/1.1" 401 58
 WARNING 2025-07-09 09:28:06,926 log 13322 6209777664 Unauthorized: /api/companies/
 WARNING 2025-07-09 09:28:06,926 basehttp 13322 6209777664 "GET /api/companies/ HTTP/1.1" 401 58
+INFO 2025-07-09 17:22:43,502 autoreload 75271 8822234880 Watching for file changes with StatReloader
+INFO 2025-07-09 17:22:45,620 basehttp 75271 6191902720 "GET /api/schema/swagger/ HTTP/1.1" 200 4661
+INFO 2025-07-09 17:22:46,096 basehttp 75271 6191902720 "GET /api/schema/ HTTP/1.1" 200 112477
+INFO 2025-07-09 17:49:34,769 autoreload 75271 8822234880 /Users/arshadaman/Desktop/RCS/reviews/models.py changed, reloading.
+INFO 2025-07-09 17:49:35,285 autoreload 78739 8822234880 Watching for file changes with StatReloader
+INFO 2025-07-09 17:49:54,817 autoreload 78739 8822234880 /Users/arshadaman/Desktop/RCS/reviews/models.py changed, reloading.
+INFO 2025-07-09 17:49:55,189 autoreload 78794 8822234880 Watching for file changes with StatReloader
+INFO 2025-07-09 17:50:04,534 autoreload 78794 8822234880 /Users/arshadaman/Desktop/RCS/reviews/models.py changed, reloading.
+INFO 2025-07-09 17:50:04,890 autoreload 78819 8822234880 Watching for file changes with StatReloader
+INFO 2025-07-09 17:50:29,473 autoreload 78819 8822234880 /Users/arshadaman/Desktop/RCS/reviews/models.py changed, reloading.
+INFO 2025-07-09 17:50:29,845 autoreload 78883 8822234880 Watching for file changes with StatReloader
+INFO 2025-07-09 18:03:18,455 autoreload 81311 8822234880 Watching for file changes with StatReloader
+INFO 2025-07-09 18:05:49,122 autoreload 81311 8822234880 /Users/arshadaman/Desktop/RCS/review_collection_system/settings.py changed, reloading.

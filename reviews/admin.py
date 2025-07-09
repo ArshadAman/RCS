@@ -47,25 +47,25 @@ class ReviewImageInline(admin.TabularInline):
 
 @admin.register(Review)
 class ReviewAdmin(admin.ModelAdmin):
-    list_display = ('title', 'business', 'reviewer_name', 'rating', 'is_approved', 'is_featured', 'created_at')
-    list_filter = ('rating', 'is_approved', 'is_featured', 'is_anonymous', 'created_at')
-    search_fields = ('title', 'content', 'business__name', 'reviewer__email', 'reviewer_name')
+    list_display = ('reviewer_name', 'business', 'overall_rating', 'status', 'created_at')
+    list_filter = ('overall_rating', 'status', 'would_recommend', 'created_at')
+    search_fields = ('comment', 'business__name', 'reviewer_name', 'reviewer_email')
     readonly_fields = ('created_at', 'updated_at', 'response_date')
     ordering = ('-created_at',)
     inlines = [ReviewImageInline]
     
     fieldsets = (
         ('Review Information', {
-            'fields': ('business', 'reviewer', 'rating', 'title', 'content')
+            'fields': ('business', 'order', 'overall_rating', 'would_recommend', 'comment')
         }),
-        ('Reviewer Information', {
-            'fields': ('reviewer_name', 'reviewer_email', 'is_anonymous')
+        ('Customer Information', {
+            'fields': ('reviewer_name', 'reviewer_email')
         }),
         ('Management', {
-            'fields': ('is_approved', 'is_featured')
+            'fields': ('status',)
         }),
         ('Business Response', {
-            'fields': ('response', 'response_date'),
+            'fields': ('business_response', 'response_date'),
             'classes': ('collapse',)
         }),
         ('Timestamps', {
@@ -74,29 +74,29 @@ class ReviewAdmin(admin.ModelAdmin):
         }),
     )
     
-    actions = ['approve_reviews', 'feature_reviews', 'unfeature_reviews']
+    actions = ['approve_reviews', 'reject_reviews', 'publish_reviews']
     
     def approve_reviews(self, request, queryset):
-        updated = queryset.update(is_approved=True)
+        updated = queryset.update(status='published')
         self.message_user(request, f'{updated} reviews approved successfully.')
     approve_reviews.short_description = "Approve selected reviews"
     
-    def feature_reviews(self, request, queryset):
-        updated = queryset.update(is_featured=True)
-        self.message_user(request, f'{updated} reviews featured successfully.')
-    feature_reviews.short_description = "Feature selected reviews"
+    def reject_reviews(self, request, queryset):
+        updated = queryset.update(status='rejected')
+        self.message_user(request, f'{updated} reviews rejected successfully.')
+    reject_reviews.short_description = "Reject selected reviews"
     
-    def unfeature_reviews(self, request, queryset):
-        updated = queryset.update(is_featured=False)
-        self.message_user(request, f'{updated} reviews unfeatured successfully.')
-    unfeature_reviews.short_description = "Unfeature selected reviews"
+    def publish_reviews(self, request, queryset):
+        updated = queryset.update(status='published')
+        self.message_user(request, f'{updated} reviews published successfully.')
+    publish_reviews.short_description = "Publish selected reviews"
 
 
 @admin.register(ReviewImage)
 class ReviewImageAdmin(admin.ModelAdmin):
     list_display = ('review', 'caption', 'uploaded_at')
     list_filter = ('uploaded_at',)
-    search_fields = ('review__title', 'caption')
+    search_fields = ('review__reviewer_name', 'caption')
     ordering = ('-uploaded_at',)
 
 
@@ -104,7 +104,7 @@ class ReviewImageAdmin(admin.ModelAdmin):
 class ReviewLikeAdmin(admin.ModelAdmin):
     list_display = ('review', 'user', 'created_at')
     list_filter = ('created_at',)
-    search_fields = ('review__title', 'user__email')
+    search_fields = ('review__reviewer_name', 'user__email')
     ordering = ('-created_at',)
 
 
@@ -118,17 +118,17 @@ class CompanyAdmin(admin.ModelAdmin):
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ('order_id', 'company', 'customer_email', 'product_name', 'purchase_date', 'created_at')
-    search_fields = ('order_id', 'customer_email', 'product_name')
-    list_filter = ('company', 'purchase_date', 'created_at')
+    list_display = ('order_number', 'business', 'customer_email', 'product_service_name', 'purchase_date', 'status', 'created_at')
+    search_fields = ('order_number', 'customer_email', 'product_service_name', 'customer_name')
+    list_filter = ('business__company', 'status', 'purchase_date', 'created_at')
     ordering = ('-created_at',)
 
 
 @admin.register(SurveyQuestion)
 class SurveyQuestionAdmin(admin.ModelAdmin):
-    list_display = ('text', 'company', 'is_active', 'is_required', 'order', 'created_at')
-    search_fields = ('text',)
-    list_filter = ('company', 'is_active', 'is_required')
+    list_display = ('question_text', 'company', 'question_type', 'is_active', 'is_required', 'order', 'created_at')
+    search_fields = ('question_text',)
+    list_filter = ('company', 'question_type', 'is_active', 'is_required')
     ordering = ('company', 'order')
 
 
@@ -151,14 +151,14 @@ class BadgeAdmin(admin.ModelAdmin):
 @admin.register(QRFeedback)
 class QRFeedbackAdmin(admin.ModelAdmin):
     list_display = ('company', 'branch_id', 'rating', 'ip_address', 'submitted_at')
-    search_fields = ('branch_id', 'company__name')
+    search_fields = ('branch_id', 'company__name', 'comment')
     list_filter = ('company', 'rating', 'submitted_at')
     ordering = ('-submitted_at',)
 
 
 @admin.register(ReviewAnswer)
 class ReviewAnswerAdmin(admin.ModelAdmin):
-    list_display = ('review', 'question', 'value', 'created_at')
-    search_fields = ('review__title', 'question__text', 'value')
+    list_display = ('review', 'question', 'answer_text', 'answer_rating', 'created_at')
+    search_fields = ('review__reviewer_name', 'question__question_text', 'answer_text')
     list_filter = ('question', 'created_at')
     ordering = ('-created_at',)

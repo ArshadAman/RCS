@@ -66,6 +66,9 @@ export default function Landing() {
             Contact sales
           </Button>
         </div>
+        <Button className="text-lg px-10 py-3 rounded-full bg-white text-indigo-700 font-bold shadow-lg hover:bg-indigo-50 mt-4" onClick={() => window.location.href='/register-business'}>
+          Register Your Business
+        </Button>
       </section>
     </SaaSLayout>
   );

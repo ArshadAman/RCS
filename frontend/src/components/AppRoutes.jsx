@@ -16,6 +16,7 @@ import SurveysPage from "../pages/SurveysPage";
 import WidgetManagerPage from "../pages/WidgetManagerPage";
 import AdminPage from "../pages/AdminPage";
 import NotFoundPage from "../pages/NotFoundPage";
+import BusinessRegisterPage from "../pages/BusinessRegisterPage";
 
 const AppRoutes = () => (
   <Routes>
@@ -34,6 +35,7 @@ const AppRoutes = () => (
     <Route path="/surveys" element={<SurveysPage />} />
     <Route path="/widgets" element={<WidgetManagerPage />} />
     <Route path="/admin" element={<AdminPage />} />
+    <Route path="/register-business" element={<BusinessRegisterPage />} />
     <Route path="*" element={<NotFoundPage />} />
   </Routes>
 );
