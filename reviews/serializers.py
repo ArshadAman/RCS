@@ -3,7 +3,7 @@ from django.db import transaction
 from .models import (
     Business, Review, ReviewImage, ReviewLike, Category, Company, Order, 
     SurveyQuestion, Plan, Badge, QRFeedback, ReviewAnswer, ReviewCriteria,
-    ReviewCriteriaRating, EmailTemplate, WidgetSettings
+    ReviewCriteriaRating, EmailTemplate, WidgetSettings, Payment
 )
 from authentication.serializers import UserProfileSerializer
 
@@ -274,3 +274,11 @@ class QRFeedbackSerializer(serializers.ModelSerializer):
         model = QRFeedback
         fields = '__all__'
         read_only_fields = ['created_at', 'ip_address']
+
+
+class PaymentSerializer(serializers.ModelSerializer):
+    """Serializer for Payment model"""
+    
+    class Meta:
+        model = Payment
+        fields = '__all__'

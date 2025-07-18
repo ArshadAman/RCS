@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Business, Review, ReviewImage, ReviewLike, Category, Company, Order, SurveyQuestion, Plan, Badge, QRFeedback, ReviewAnswer
+from .models import Business, Review, ReviewImage, ReviewLike, Category, Company, Order, SurveyQuestion, Plan, Badge, QRFeedback, ReviewAnswer, Payment
 
 
 @admin.register(Category)
@@ -162,3 +162,11 @@ class ReviewAnswerAdmin(admin.ModelAdmin):
     search_fields = ('review__reviewer_name', 'question__question_text', 'answer_text')
     list_filter = ('question', 'created_at')
     ordering = ('-created_at',)
+
+
+@admin.register(Payment)
+class PaymentAdmin(admin.ModelAdmin):
+    list_display = ('company', 'plan_type', 'amount', 'currency', 'status', 'paypal_order_id', 'created_at')
+    list_filter = ('status', 'plan_type', 'currency', 'created_at')
+    search_fields = ('company__name', 'paypal_order_id')
+    readonly_fields = ('raw_response',)

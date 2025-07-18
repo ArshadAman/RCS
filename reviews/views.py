@@ -227,6 +227,17 @@ class OrderViewSet(viewsets.ModelViewSet):
 
 
 class ReviewViewSet(viewsets.ModelViewSet):
+    def perform_create(self, serializer):
+        # Enforce plan review limit
+        business = serializer.validated_data.get('business')
+        company = business.company
+        plan = getattr(company, 'plan', None)
+        if plan is not None:
+            review_limit = plan.review_limit
+            current_review_count = Review.objects.filter(business__company=company).count()
+            if current_review_count >= review_limit:
+                raise ValidationError(f"Review limit reached for your current plan ({plan.get_plan_type_display()}). Please upgrade your plan to add more reviews.")
+        serializer.save()
     """ViewSet for Review management"""
     serializer_class = ReviewSerializer
     permission_classes = [IsAuthenticated]

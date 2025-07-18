@@ -19,6 +19,8 @@ from .views import (
     bulk_approve_reviews,
     bulk_reject_reviews,
 )
+from .views_payment import PaymentViewSet
+from .webhooks import paypal_webhook
 
 app_name = 'reviews'
 
@@ -33,6 +35,7 @@ router.register(r'email-templates', EmailTemplateViewSet, basename='emailtemplat
 router.register(r'widget-settings', WidgetSettingsViewSet, basename='widgetsettings')
 router.register(r'categories', CategoryListView, basename='category')
 router.register(r'qr-feedback', QRFeedbackViewSet, basename='qrfeedback')
+router.register(r'payments', PaymentViewSet, basename='payment')
 
 urlpatterns = [
     # Include the router URLs
@@ -60,4 +63,7 @@ urlpatterns = [
     path('orders/<int:pk>/send-review-request/', 
          OrderViewSet.as_view({'post': 'send_review_request'}), 
          name='send_review_request'),
+    
+    # Webhook endpoints
+    path('paypal/webhook/', paypal_webhook, name='paypal-webhook'),
 ]

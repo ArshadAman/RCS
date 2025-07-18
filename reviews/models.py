@@ -1,3 +1,52 @@
+
+
+
+# ...existing code...
+
+# Place Plan and Payment models after Company definition
+
+# ...existing code...
+
+class Plan(models.Model):
+    """Subscription plan for companies"""
+    PLAN_CHOICES = [
+        ('basic', 'Basic'),
+        ('standard', 'Standard'),
+        ('premium', 'Premium'),
+    ]
+    company = models.OneToOneField('Company', on_delete=models.CASCADE, related_name='plan')
+    plan_type = models.CharField(max_length=20, choices=PLAN_CHOICES)
+    review_limit = models.PositiveIntegerField(default=50)
+    created_at = models.DateTimeField(auto_now_add=True)
+    def __str__(self):
+        return f"{self.company.name} - {self.get_plan_type_display()}"
+
+class Payment(models.Model):
+    """Tracks PayPal payments for plan upgrades"""
+    PAYMENT_STATUS_CHOICES = [
+        ('created', 'Created'),
+        ('approved', 'Approved'),
+        ('completed', 'Completed'),
+        ('failed', 'Failed'),
+        ('refunded', 'Refunded'),
+    ]
+    company = models.ForeignKey('Company', on_delete=models.CASCADE, related_name='payments')
+    plan_type = models.CharField(max_length=20, choices=Plan.PLAN_CHOICES)
+    paypal_order_id = models.CharField(max_length=100, unique=True)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    currency = models.CharField(max_length=10, default='USD')
+    status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='created')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    raw_response = models.JSONField(blank=True, null=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Payment'
+        verbose_name_plural = 'Payments'
+
+    def __str__(self):
+        return f"{self.company.name} - {self.plan_type} - {self.status}"
 from django.db import models
 from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator, MaxValueValidator
@@ -24,6 +73,7 @@ class Company(models.Model):
         verbose_name_plural = 'Companies'
     
     def __str__(self):
+        """String representation of the company (for admin and debugging)."""
         return self.name
 
 
