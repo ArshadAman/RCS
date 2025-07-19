@@ -5,6 +5,8 @@ from django.utils import timezone
 import uuid
 
 
+
+
 # ...existing code...
 
 # Place Plan and Payment models after Company definition
@@ -51,11 +53,6 @@ class Payment(models.Model):
 
     def __str__(self):
         return f"{self.company.name} - {self.plan_type} - {self.status}"
-from django.db import models
-from django.contrib.auth import get_user_model
-from django.core.validators import MinValueValidator, MaxValueValidator
-from django.utils import timezone
-import uuid
 
 User = get_user_model()
 
@@ -295,22 +292,6 @@ class Category(models.Model):
     
     def __str__(self):
         return self.name
-
-
-class Plan(models.Model):
-    """Subscription plan for companies"""
-    PLAN_CHOICES = [
-        ('basic', 'Basic'),
-        ('standard', 'Standard'),
-        ('premium', 'Premium'),
-    ]
-    company = models.OneToOneField(Company, on_delete=models.CASCADE, related_name='plan')
-    plan_type = models.CharField(max_length=20, choices=PLAN_CHOICES)
-    review_limit = models.PositiveIntegerField(default=50)
-    created_at = models.DateTimeField(auto_now_add=True)
-    
-    def __str__(self):
-        return f"{self.company.name} - {self.get_plan_type_display()}"
 
 
 class Badge(models.Model):
