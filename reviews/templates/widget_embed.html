@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { margin:0; font-family:sans-serif; }
+    #rcs-widget { background:#fff; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.12); padding:16px; width:320px; border:1px solid #eee; }
+    .rcs-trust-badge { font-size:0.9em; font-weight:bold; }
+    .rcs-reviews { margin-top:10px; }
+    .rcs-review { margin-bottom:10px; }
+    .rcs-rating { color:#2563eb; font-weight:bold; }
+    .rcs-read-btn { background:#2563eb;color:#fff;border:none;border-radius:6px;padding:8px 16px;cursor:pointer;text-decoration:none;display:inline-block; }
+  </style>
+</head>
+<body>
+  <div id="rcs-widget-collapsed" onclick="expandWidget()" style="position:fixed;right:0;bottom:80px;z-index:9999;background:#2563eb;color:#fff;padding:12px 20px;border-radius:12px 0 0 12px;box-shadow:0 2px 12px rgba(0,0,0,0.12);cursor:pointer;font-weight:bold;transition:right 0.3s;">
+    <span>Verified Reviews</span>
+  </div>
+  <div id="rcs-widget" style="display:none;position:fixed;right:20px;bottom:80px;z-index:9999;background:#fff;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,0.12);padding:0;width:340px;border:1px solid #eee;">
+    <div style="background:#2563eb;color:#fff;padding:16px 16px 8px 16px;border-radius:12px 12px 0 0;display:flex;align-items:center;">
+      <img src="{% if company.logo %}{{ company.logo.url }}{% else %}/static/default-logo.png{% endif %}" alt="Logo" style="width:48px;height:48px;border-radius:8px;margin-right:12px;">
+      <div>
+        <div style="font-weight:bold;font-size:1.1em;">{{ company.name }}</div>
+        <div style="color:#e0e0e0;">{{ company.category.name }}</div>
+      </div>
+    </div>
+    <div style="padding:12px 16px 0 16px;">
+      <div style="display:flex;align-items:center;">
+        <span style="font-size:2em;font-weight:bold;color:#f5b50a;">{{ avg_rating }}★</span>
+        <span style="margin-left:16px;font-size:1.2em;color:#2563eb;font-weight:bold;">{{ recommend_percent }}%</span>
+        <span style="margin-left:8px;color:#444;font-size:0.95em;">recommend</span>
+      </div>
+      <div style="margin-top:8px;font-size:0.95em;color:#888;">
+        <span class="rcs-trust-badge" style="color:#ffd700;">{{ trust_badge }} Trust Badge</span>
+      </div>
+      <div style="margin-top:12px;">
+        <div style="font-weight:bold;margin-bottom:8px;color:#2563eb;">Recent Customer Comments</div>
+        {% for r in reviews %}
+          <div class="rcs-review" style="margin-bottom:10px;">
+            <span class="rcs-rating">{{ r.rating }}★</span>
+            <span style="color:#444;">{{ r.text }}</span><br>
+            <span style="font-size:0.85em;color:#888;">{{ r.user }}</span>
+          </div>
+        {% endfor %}
+      </div>
+      <div style="margin-top:12px;">
+        <a href="https://yourdomain.com/company/{{ company.id }}/reviews" target="_blank" class="rcs-read-btn" style="width:100%;text-align:center;">Read All Reviews</a>
+      </div>
+    </div>
+    <div onclick="collapseWidget()" style="position:absolute;top:8px;right:8px;width:28px;height:28px;background:#eee;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;">
+      <span style="font-size:1.2em;color:#2563eb;font-weight:bold;">&times;</span>
+    </div>
+  </div>
+  <script>
+    function expandWidget() {
+      document.getElementById('rcs-widget-collapsed').style.display = 'none';
+      document.getElementById('rcs-widget').style.display = 'block';
+    }
+    function collapseWidget() {
+      document.getElementById('rcs-widget').style.display = 'none';
+      document.getElementById('rcs-widget-collapsed').style.display = 'block';
+    }
+  </script>
+</body>
+</html>

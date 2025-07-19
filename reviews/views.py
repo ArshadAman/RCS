@@ -157,7 +157,8 @@ class OrderViewSet(viewsets.ModelViewSet):
         business = serializer.validated_data.get('business')
         if business.company.owner != self.request.user:
             raise PermissionDenied("You can only create orders for your own businesses")
-        serializer.save()
+        # Automatically set the company based on the business
+        serializer.save(company=business.company)
     
     @action(detail=True, methods=['post'])
     def send_review_request(self, request, pk=None):

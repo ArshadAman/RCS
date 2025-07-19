@@ -21,6 +21,7 @@ from .views import (
 )
 from .views_payment import PaymentViewSet
 from .webhooks import paypal_webhook
+from .views_widget import WidgetEmbedView
 
 app_name = 'reviews'
 
@@ -66,4 +67,7 @@ urlpatterns = [
     
     # Webhook endpoints
     path('paypal/webhook/', paypal_webhook, name='paypal-webhook'),
+    
+    # Widget embed endpoint
+    path('widget/<int:company_id>/embed/', WidgetEmbedView.as_view(), name='widget-embed'),
 ]

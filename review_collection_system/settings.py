@@ -234,3 +234,11 @@ SESSION_COOKIE_AGE = 86400  # 24 hours
 # CSRF Configuration
 CSRF_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_HTTPONLY = True
+
+# PayPal API Configuration
+PAYPAL_CLIENT_ID = config('PAYPAL_CLIENT_ID', default='')
+PAYPAL_CLIENT_SECRET = config('PAYPAL_CLIENT_SECRET', default='')
+PAYPAL_API_BASE = config('PAYPAL_API_BASE', default='https://api-m.sandbox.paypal.com')
+
+# Frontend URL for review links and redirects
+FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3000')
