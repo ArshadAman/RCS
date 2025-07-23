@@ -198,7 +198,7 @@ class CompanySerializer(serializers.ModelSerializer):
         model = Company
         fields = [
             'id', 'name', 'unique_id', 'logo', 'website', 'email', 
-            'phone_number', 'is_active', 'created_at', 'updated_at'
+            'phone_number', 'country', 'is_active', 'created_at', 'updated_at'
         ]
         read_only_fields = ['unique_id', 'created_at', 'updated_at']
 

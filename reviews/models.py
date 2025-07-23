@@ -66,6 +66,7 @@ class Company(models.Model):
     website = models.URLField(blank=True)
     email = models.EmailField(blank=True)
     phone_number = models.CharField(max_length=20, blank=True)
+    country = models.CharField(max_length=100, blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

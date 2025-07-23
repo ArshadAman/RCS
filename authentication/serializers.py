@@ -7,31 +7,87 @@ from .models import User
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
-    """Serializer for user registration"""
+    """Serializer for user registration with company and plan creation"""
     
-    password = serializers.CharField(write_only=True)  # Remove validators
+    password = serializers.CharField(write_only=True)
     password_confirm = serializers.CharField(write_only=True)
+    
+    # Business/Company fields
+    business_name = serializers.CharField(max_length=200, write_only=True)
+    website_url = serializers.URLField(required=False, allow_blank=True, write_only=True)
+    contact_number = serializers.CharField(max_length=20, write_only=True)
+    country = serializers.CharField(max_length=100, write_only=True)
+    
+    # Plan selection
+    plan_type = serializers.ChoiceField(
+        choices=[('basic', 'Basic'), ('standard', 'Standard'), ('premium', 'Premium')],
+        write_only=True
+    )
     
     class Meta:
         model = User
         fields = (
             'username', 'email', 'password', 'password_confirm',
-            'first_name', 'last_name', 'phone_number', 'date_of_birth'
+            'first_name', 'last_name', 'phone_number', 'date_of_birth',
+            'business_name', 'website_url', 'contact_number', 'country', 'plan_type'
         )
     
     def validate(self, attrs):
         if attrs['password'] != attrs['password_confirm']:
             raise serializers.ValidationError("Passwords don't match")
+        
+        # Validate business name uniqueness
+        from reviews.models import Company
+        business_name = attrs.get('business_name')
+        if Company.objects.filter(name=business_name).exists():
+            raise serializers.ValidationError({
+                'business_name': 'A company with this name already exists'
+            })
+        
         return attrs
     
     def create(self, validated_data):
+        # Extract business and plan data
+        business_name = validated_data.pop('business_name')
+        website_url = validated_data.pop('website_url', '')
+        contact_number = validated_data.pop('contact_number')
+        country = validated_data.pop('country')
+        plan_type = validated_data.pop('plan_type')
         validated_data.pop('password_confirm')
+        
+        # Create user
         user = User.objects.create_user(**validated_data)
-        # Email verification disabled for now
-        # from .tasks import send_verification_email
-        # send_verification_email.delay(user.id)
         user.is_verified = True
         user.save()
+        
+        # Create company with business information
+        from reviews.models import Company, Plan
+        company = Company.objects.create(
+            name=business_name,
+            owner=user,
+            website=website_url,
+            email=user.email,
+            phone_number=contact_number,
+            country=country
+        )
+        
+        # Create plan based on selection
+        plan_limits = {
+            'basic': 50,
+            'standard': 150, 
+            'premium': 400
+        }
+        
+        Plan.objects.create(
+            company=company,
+            plan_type=plan_type,
+            review_limit=plan_limits[plan_type]
+        )
+        
+        # Store additional user info (country can be stored in profile or company)
+        # For now, we'll store it as part of the user's profile
+        # You might want to add a country field to User model or Company model
+        
         return user
 
 

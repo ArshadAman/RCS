@@ -89,12 +89,40 @@ The API will be available at `http://localhost:8000/`
 ## API Endpoints
 
 ### Authentication
-- `POST /api/auth/register/` - User registration
+- `POST /api/auth/register/` - User registration with business and plan setup
 - `POST /api/auth/login/` - User login
 - `POST /api/auth/logout/` - User logout
 - `GET/PUT /api/auth/profile/` - User profile
 - `POST /api/auth/password/change/` - Change password
 - `POST /api/auth/token/refresh/` - Refresh JWT token
+
+#### User Registration (Updated)
+**Endpoint:** `POST /api/auth/register/`
+
+**Required Fields:**
+```json
+{
+  "username": "string",
+  "email": "email",
+  "password": "string",
+  "password_confirm": "string",  
+  "first_name": "string",
+  "last_name": "string",
+  "phone_number": "string",
+  "business_name": "string",
+  "website_url": "url (optional)",
+  "contact_number": "string",
+  "country": "string",
+  "plan_type": "basic|standard|premium"
+}
+```
+
+**Plan Types:**
+- `basic` - 50 reviews ($19/month)
+- `standard` - 150 reviews ($49/month)  
+- `premium` - 400 reviews ($99/month)
+
+**Response:** Returns user data, JWT tokens, company information, and plan details.
 
 ### Categories
 - `GET /api/categories/` - List all categories

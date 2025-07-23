@@ -31,17 +31,33 @@ class UserRegistrationView(generics.CreateAPIView):
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
         
+        # Get the created company
+        from reviews.models import Company
+        company = Company.objects.filter(owner=user).first()
+        
         # Generate JWT tokens
         refresh = RefreshToken.for_user(user)
         
-        return Response({
-            'message': 'User registered successfully. Please check your email to verify your account.',
+        response_data = {
+            'message': 'Registration successful! Your account and company have been created.',
             'user': UserProfileSerializer(user).data,
             'tokens': {
                 'refresh': str(refresh),
                 'access': str(refresh.access_token),
             }
-        }, status=status.HTTP_201_CREATED)
+        }
+        
+        # Include company information if created
+        if company:
+            from reviews.serializers import CompanySerializer
+            response_data['company'] = CompanySerializer(company).data
+            
+            # Include plan information
+            if hasattr(company, 'plan'):
+                from reviews.serializers import PlanSerializer
+                response_data['plan'] = PlanSerializer(company.plan).data
+        
+        return Response(response_data, status=status.HTTP_201_CREATED)
 
 
 @method_decorator(ratelimit(key='ip', rate='10/m', method='POST'), name='post')
