@@ -23,6 +23,8 @@ try:
         get_response = requests.get(f"{base_url}/orders/", headers=headers)
         print(f"GET Orders Status: {get_response.status_code}")
         
+
+        
         # Test POST orders
         order_data = {
             "business": 1,  # Use existing business ID
