@@ -1,23 +1,91 @@
-/RCS-frontend/
-node_modules/
-dist/
-.DS_Store
+# Django specific
+*.log
+*.pot
+*.pyc
+__pycache__/
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+media/
+staticfiles/
+static/admin/
+static/rest_framework/
+
+# Environment variables
 .env
-npm-debug.log
-yarn-error.log
-yarn-debug.log
-package-lock.json
-yarn.lock
-coverage/
+.env.local
+.env.production
+.env.staging
+*.env
+
+# Python
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+*.pyo
+*.pyd
+*.pdb
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+
+# IDE and editors
 .vscode/
 .idea/
-*.log
 *.swp
 *.swo
-*.tmp
-*.bak
-*.orig
-*.DS_Store
+*~
+.spyderproject
+.spyproject
+.rope_project_settings
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Node.js (for frontend)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+.npm
+coverage/
+
+# Frontend build
+/RCS-frontend/
+dist/
+build/
+
+# Certificates and keys
 *.pem
 *.p12
 *.key
@@ -25,13 +93,57 @@ coverage/
 *.cer
 *.pfx
 *.jks
+
+# Temporary files
+*.tmp
+*.bak
+*.orig
+*.swp
+*.swo
+
+# Test files
 test_api.py
 test_endpoints.py
 debug_orders.py
 simple_test.py
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-*.pdb
-db.sqlite3
+test_new_registration.py
+
+# Logs
+logs/
+*.log
+
+# Backup files
+*.backup
+*.dump
+
+# Coverage reports
+htmlcov/
+.coverage
+.pytest_cache/
+.tox/
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# Redis
+dump.rdb
+
+# Local development
+local/
+.local/
+
+# Documentation
+docs/_build/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# Poetry
+poetry.lock
+
+# PEP 582
+__pypackages__/
