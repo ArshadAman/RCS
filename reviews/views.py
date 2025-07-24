@@ -82,37 +82,52 @@ def _send_review_email(order):
 
 # Business views (one business per user)
 @extend_schema(
-    operation_id='get_update_business',
+    operation_id='manage_business',
     tags=['Business'],
-    summary='Get or Update Business',
+    summary='Manage Business',
     description="""
-    Retrieve or update the authenticated user's business information.
+    Manage the authenticated user's business information.
     Each user can only have one business in the system.
+    
+    **GET:** Retrieve business information
+    **POST:** Create a new business (if user doesn't have one)
+    **PUT/PATCH:** Update existing business information
     """,
     responses={
         200: BusinessSerializer,
+        201: 'Business created successfully',
         404: OpenApiExample(
             'Business Not Found',
             value={'error': 'Business not found. Please create a business first.'},
             response_only=True
         ),
         400: OpenApiExample(
-            'Validation Error',
-            value={'field_name': ['This field is required.']},
+            'Validation Error or Business Already Exists',
+            value={'error': 'You already have a business. Use PUT/PATCH to update it.'},
             response_only=True
         )
     },
     examples=[
         OpenApiExample(
-            'Update Business Request',
+            'Create Business Request',
             value={
                 'name': 'My Awesome Restaurant',
                 'description': 'Best pizza in town!',
-                'category': 'Restaurant',
+                'category': 1,
                 'address': '123 Main St, City, State 12345',
                 'phone_number': '+1-555-123-4567',
                 'email': 'contact@myrestaurant.com',
                 'website': 'https://myrestaurant.com'
+            },
+            request_only=True
+        ),
+        OpenApiExample(
+            'Update Business Request',
+            value={
+                'name': 'My Updated Restaurant',
+                'description': 'Best pizza and pasta in town!',
+                'address': '456 New St, City, State 12345',
+                'phone_number': '+1-555-987-6543'
             },
             request_only=True
         ),
@@ -122,7 +137,10 @@ def _send_review_email(order):
                 'id': 1,
                 'name': 'My Awesome Restaurant',
                 'description': 'Best pizza in town!',
-                'category': 'Restaurant',
+                'category': {
+                    'id': 1,
+                    'name': 'Restaurant'
+                },
                 'address': '123 Main St, City, State 12345',
                 'phone_number': '+1-555-123-4567',
                 'email': 'contact@myrestaurant.com',
@@ -137,11 +155,26 @@ def _send_review_email(order):
         )
     ]
 )
-@api_view(['GET', 'PUT', 'PATCH'])
+@api_view(['GET', 'POST', 'PUT', 'PATCH'])
 @permission_classes([IsAuthenticated])
 def business_view(request):
-    """Get or update user's business"""
+    """Get, create, or update user's business"""
     
+    if request.method == 'POST':
+        # Check if user already has a business
+        if Business.objects.filter(owner=request.user).exists():
+            return Response(
+                {'error': 'You already have a business. Use PUT/PATCH to update it.'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Create new business
+        serializer = BusinessCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        business = serializer.save(owner=request.user)
+        return Response(BusinessSerializer(business).data, status=status.HTTP_201_CREATED)
+    
+    # For GET, PUT, PATCH - business must exist
     try:
         business = Business.objects.get(owner=request.user)
     except Business.DoesNotExist:
