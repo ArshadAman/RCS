@@ -27,15 +27,15 @@ def user_registration_view(request):
     serializer.is_valid(raise_exception=True)
     user = serializer.save()
     
-    # Get the created company
-    from reviews.models import Company
-    company = Company.objects.filter(owner=user).first()
+    # Get the created business
+    from reviews.models import Business
+    business = Business.objects.filter(owner=user).first()
     
     # Generate JWT tokens
     refresh = RefreshToken.for_user(user)
     
     response_data = {
-        'message': 'Registration successful! Your account and company have been created.',
+        'message': 'Registration successful! Your account and business have been created.',
         'user': UserProfileSerializer(user).data,
         'tokens': {
             'refresh': str(refresh),
@@ -43,15 +43,15 @@ def user_registration_view(request):
         }
     }
     
-    # Include company information if created
-    if company:
-        from reviews.serializers import CompanySerializer
-        response_data['company'] = CompanySerializer(company).data
+    # Include business information if created
+    if business:
+        from reviews.serializers import BusinessSerializer
+        response_data['business'] = BusinessSerializer(business).data
         
         # Include plan information
-        if hasattr(company, 'plan'):
+        if hasattr(user, 'plan'):
             from reviews.serializers import PlanSerializer
-            response_data['plan'] = PlanSerializer(company.plan).data
+            response_data['plan'] = PlanSerializer(user.plan).data
     
     return Response(response_data, status=status.HTTP_201_CREATED)
 

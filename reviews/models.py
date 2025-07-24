@@ -4,28 +4,28 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
 import uuid
 
+User = get_user_model()
 
 
+def generate_unique_id():
+    return str(uuid.uuid4()).replace('-', '')[:32]
 
-# ...existing code...
-
-# Place Plan and Payment models after Company definition
-
-# ...existing code...
 
 class Plan(models.Model):
-    """Subscription plan for companies"""
+    """Subscription plan for users"""
     PLAN_CHOICES = [
         ('basic', 'Basic'),
         ('standard', 'Standard'),
         ('premium', 'Premium'),
     ]
-    company = models.OneToOneField('Company', on_delete=models.CASCADE, related_name='plan')
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='plan', null=True)
     plan_type = models.CharField(max_length=20, choices=PLAN_CHOICES)
     review_limit = models.PositiveIntegerField(default=50)
     created_at = models.DateTimeField(auto_now_add=True)
+    
     def __str__(self):
-        return f"{self.company.name} - {self.get_plan_type_display()}"
+        return f"{self.user.username} - {self.get_plan_type_display()}"
+
 
 class Payment(models.Model):
     """Tracks PayPal payments for plan upgrades"""
@@ -36,7 +36,7 @@ class Payment(models.Model):
         ('failed', 'Failed'),
         ('refunded', 'Refunded'),
     ]
-    company = models.ForeignKey('Company', on_delete=models.CASCADE, related_name='payments')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='payments', null=True)
     plan_type = models.CharField(max_length=20, choices=Plan.PLAN_CHOICES)
     paypal_order_id = models.CharField(max_length=100, unique=True)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
@@ -52,36 +52,12 @@ class Payment(models.Model):
         verbose_name_plural = 'Payments'
 
     def __str__(self):
-        return f"{self.company.name} - {self.plan_type} - {self.status}"
-
-User = get_user_model()
-
-
-class Company(models.Model):
-    """Multi-tenant company/brand model"""
-    name = models.CharField(max_length=200, unique=True)
-    unique_id = models.CharField(max_length=32, unique=True, default=uuid.uuid4)
-    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='companies')
-    logo = models.ImageField(upload_to='company_logos/', blank=True, null=True)
-    website = models.URLField(blank=True)
-    email = models.EmailField(blank=True)
-    phone_number = models.CharField(max_length=20, blank=True)
-    country = models.CharField(max_length=100, blank=True)
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    class Meta:
-        verbose_name_plural = 'Companies'
-    
-    def __str__(self):
-        """String representation of the company (for admin and debugging)."""
-        return self.name
+        return f"{self.user.username} - {self.plan_type} - {self.status}"
 
 
 class ReviewCriteria(models.Model):
-    """Customizable review criteria per company"""
-    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='review_criteria')
+    """Customizable review criteria per user/business"""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='review_criteria', null=True)
     name = models.CharField(max_length=100)
     is_active = models.BooleanField(default=True)
     order = models.PositiveIntegerField(default=0)
@@ -89,18 +65,23 @@ class ReviewCriteria(models.Model):
     
     class Meta:
         ordering = ['order']
-        unique_together = ('company', 'name')
+        unique_together = ('user', 'name')
         verbose_name_plural = 'Review Criteria'
     
     def __str__(self):
-        return f"{self.company.name} - {self.name}"
+        return f"{self.user.username} - {self.name}"
+        verbose_name = 'Payment'
+        verbose_name_plural = 'Payments'
+
+    def __str__(self):
+        return f"{self.company.name} - {self.plan_type} - {self.status}"
 
 
 class Business(models.Model):
-    """Model representing a business that can receive reviews"""
+    """Model representing a user's business that can receive reviews"""
     
     name = models.CharField(max_length=200)
-    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='businesses')
+    owner = models.OneToOneField(User, on_delete=models.CASCADE, related_name='business')
     description = models.TextField(blank=True)
     category = models.CharField(max_length=100)
     address = models.TextField()
@@ -108,7 +89,7 @@ class Business(models.Model):
     email = models.EmailField(blank=True)
     website = models.URLField(blank=True)
     logo = models.ImageField(upload_to='business_logos/', blank=True, null=True)
-    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='owned_businesses')
+    unique_id = models.CharField(max_length=32, default=generate_unique_id)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -116,10 +97,9 @@ class Business(models.Model):
     class Meta:
         verbose_name = 'Business'
         verbose_name_plural = 'Businesses'
-        unique_together = ('company', 'name')
     
     def __str__(self):
-        return f"{self.company.name} - {self.name}"
+        return self.name
     
     @property
     def average_rating(self):
@@ -150,7 +130,7 @@ class Order(models.Model):
         ('expired', 'Expired'),
     ]
     
-    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='orders')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='orders', null=True)
     business = models.ForeignKey(Business, on_delete=models.CASCADE, related_name='orders')
     order_number = models.CharField(max_length=100)
     customer_email = models.EmailField()
@@ -163,7 +143,7 @@ class Order(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
-        unique_together = ('company', 'order_number')
+        unique_together = ('user', 'order_number')
         ordering = ['-created_at']
 
     def __str__(self):
@@ -187,7 +167,6 @@ class Review(models.Model):
     
     order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name='review')
     business = models.ForeignKey(Business, on_delete=models.CASCADE, related_name='reviews')
-    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='reviews')
     reviewer_name = models.CharField(max_length=100, help_text="Public display name")
     reviewer_email = models.EmailField()
     
@@ -222,7 +201,6 @@ class Review(models.Model):
     class Meta:
         ordering = ['-created_at']
         indexes = [
-            models.Index(fields=['company', 'status']),
             models.Index(fields=['business', 'status']),
             models.Index(fields=['created_at']),
         ]
@@ -296,24 +274,24 @@ class Category(models.Model):
 
 
 class Badge(models.Model):
-    """Certification badge for companies"""
+    """Certification badge for users/businesses"""
     BADGE_CHOICES = [
         ('bronze', 'Bronze'),
         ('silver', 'Silver'),
         ('gold', 'Gold'),
     ]
-    company = models.OneToOneField(Company, on_delete=models.CASCADE, related_name='badge')
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='badge', null=True)
     badge_type = models.CharField(max_length=20, choices=BADGE_CHOICES)
     percentage = models.FloatField(default=0)
     assigned_at = models.DateTimeField(auto_now_add=True)
     
     def __str__(self):
-        return f"{self.company.name} - {self.get_badge_type_display()}"
+        return f"{self.user.username} - {self.get_badge_type_display()}"
 
 
 class QRFeedback(models.Model):
     """QR-based offline feedback"""
-    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='qr_feedbacks')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='qr_feedbacks', null=True)
     branch_id = models.CharField(max_length=100)
     rating = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
     comment = models.TextField(blank=True)
@@ -326,7 +304,7 @@ class QRFeedback(models.Model):
 
 class EmailTemplate(models.Model):
     """Email templates for review requests"""
-    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='email_templates')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='email_templates', null=True)
     name = models.CharField(max_length=100)
     subject = models.CharField(max_length=200)
     body_html = models.TextField()
@@ -335,26 +313,27 @@ class EmailTemplate(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     
     def __str__(self):
-        return f"{self.company.name} - {self.name}"
+        return f"{self.user.username} - {self.name}"
 
 
 class WidgetSettings(models.Model):
-    """Widget display settings per company"""
-    company = models.OneToOneField(Company, on_delete=models.CASCADE, related_name='widget_settings')
+    """Widget display settings per user/business"""
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='widget_settings', null=True)
     is_enabled = models.BooleanField(default=True)
     position = models.CharField(max_length=20, choices=[('right', 'Right'), ('left', 'Left')], default='right')
     theme_color = models.CharField(max_length=7, default='#4F46E5')  # Hex color
-    show_company_logo = models.BooleanField(default=True)
+    show_business_logo = models.BooleanField(default=True)
     show_review_count = models.BooleanField(default=True)
     show_criteria_breakdown = models.BooleanField(default=True)
+    display_count = models.PositiveIntegerField(default=5)
     created_at = models.DateTimeField(auto_now_add=True)
     
     def __str__(self):
-        return f"Widget settings for {self.company.name}"
+        return f"Widget settings for {self.user.username}"
 
 
 class SurveyQuestion(models.Model):
-    """Custom survey questions for companies"""
+    """Custom survey questions for users/businesses"""
     QUESTION_TYPES = [
         ('text', 'Text'),
         ('textarea', 'Textarea'),
@@ -363,7 +342,7 @@ class SurveyQuestion(models.Model):
         ('boolean', 'Yes/No'),
     ]
     
-    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='survey_questions')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='survey_questions', null=True)
     question_text = models.TextField()
     question_type = models.CharField(max_length=20, choices=QUESTION_TYPES, default='text')
     is_required = models.BooleanField(default=False)
@@ -375,10 +354,10 @@ class SurveyQuestion(models.Model):
     
     class Meta:
         ordering = ['order']
-        unique_together = ('company', 'question_text')
+        unique_together = ('user', 'question_text')
     
     def __str__(self):
-        return f"{self.company.name} - {self.question_text[:50]}"
+        return f"{self.user.username} - {self.question_text[:50]}"
 
 
 class ReviewAnswer(models.Model):

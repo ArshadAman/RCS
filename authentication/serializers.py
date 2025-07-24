@@ -36,12 +36,12 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         if attrs['password'] != attrs['password_confirm']:
             raise serializers.ValidationError("Passwords don't match")
         
-        # Validate business name uniqueness
-        from reviews.models import Company
+        # Check if business name is already taken
+        from reviews.models import Business
         business_name = attrs.get('business_name')
-        if Company.objects.filter(name=business_name).exists():
+        if Business.objects.filter(name=business_name).exists():
             raise serializers.ValidationError({
-                'business_name': 'A company with this name already exists'
+                'business_name': 'A business with this name already exists'
             })
         
         return attrs
@@ -60,15 +60,17 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         user.is_verified = True
         user.save()
         
-        # Create company with business information
-        from reviews.models import Company, Plan
-        company = Company.objects.create(
+        # Create business with the business information
+        from reviews.models import Business, Plan
+        business = Business.objects.create(
             name=business_name,
             owner=user,
             website=website_url,
             email=user.email,
             phone_number=contact_number,
-            country=country
+            category='General',  # Default category
+            address='',  # Can be updated later
+            description='',  # Can be updated later
         )
         
         # Create plan based on selection
@@ -79,14 +81,10 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         }
         
         Plan.objects.create(
-            company=company,
+            user=user,
             plan_type=plan_type,
             review_limit=plan_limits[plan_type]
         )
-        
-        # Store additional user info (country can be stored in profile or company)
-        # For now, we'll store it as part of the user's profile
-        # You might want to add a country field to User model or Company model
         
         return user
 

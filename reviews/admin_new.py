@@ -12,21 +12,21 @@ class CategoryAdmin(admin.ModelAdmin):
 
 @admin.register(Business)
 class BusinessAdmin(admin.ModelAdmin):
-    list_display = ('name', 'category', 'owner', 'average_rating', 'total_reviews', 'is_active', 'created_at')
+    list_display = ('name', 'category', 'user', 'average_rating', 'total_reviews', 'is_active', 'created_at')
     list_filter = ('category', 'is_active', 'created_at')
-    search_fields = ('name', 'description', 'category', 'owner__email', 'owner__username')
+    search_fields = ('name', 'description', 'category', 'user__email', 'user__username')
     readonly_fields = ('average_rating', 'total_reviews', 'created_at', 'updated_at')
     ordering = ('-created_at',)
     
     fieldsets = (
         ('Basic Information', {
-            'fields': ('name', 'description', 'category', 'logo')
+            'fields': ('name', 'description', 'category', 'industry', 'logo')
         }),
         ('Contact Information', {
             'fields': ('address', 'phone_number', 'email', 'website')
         }),
         ('Management', {
-            'fields': ('owner', 'is_active')
+            'fields': ('user', 'is_active')
         }),
         ('Statistics', {
             'fields': ('average_rating', 'total_reviews'),
@@ -112,7 +112,7 @@ class ReviewLikeAdmin(admin.ModelAdmin):
 class OrderAdmin(admin.ModelAdmin):
     list_display = ('order_number', 'business', 'customer_email', 'product_service_name', 'purchase_date', 'status', 'created_at')
     search_fields = ('order_number', 'customer_email', 'product_service_name', 'customer_name')
-    list_filter = ('business__owner', 'status', 'purchase_date', 'created_at')
+    list_filter = ('business__user', 'status', 'purchase_date', 'created_at')
     ordering = ('-created_at',)
 
 
@@ -166,7 +166,7 @@ class PaymentAdmin(admin.ModelAdmin):
 
 @admin.register(ReviewCriteria)
 class ReviewCriteriaAdmin(admin.ModelAdmin):
-    list_display = ('user', 'name', 'is_active', 'created_at')
+    list_display = ('user', 'criteria_name', 'is_active', 'created_at')
     list_filter = ('is_active', 'created_at')
-    search_fields = ('user__username', 'user__email', 'name')
+    search_fields = ('user__username', 'user__email', 'criteria_name')
     ordering = ('-created_at',)

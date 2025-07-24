@@ -5,7 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import PermissionDenied
 from django.shortcuts import get_object_or_404
 from django.conf import settings
-from .models import Payment, Plan
+from .models import Payment, Company, Plan
 from .serializers import PaymentSerializer
 from .paypal import create_paypal_order, capture_paypal_order, create_vault_setup_token, create_payment_token
 
@@ -26,7 +26,7 @@ def payment_list_create_view(request):
         if request.user.is_staff:
             queryset = Payment.objects.all()
         else:
-            queryset = Payment.objects.filter(user=request.user)
+            queryset = Payment.objects.filter(company__owner=request.user)
         
         serializer = PaymentSerializer(queryset, many=True)
         return Response(serializer.data)
@@ -35,8 +35,11 @@ def payment_list_create_view(request):
         serializer = PaymentSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         
-        # Automatically set the user
-        serializer.save(user=request.user)
+        company = serializer.validated_data.get('company')
+        if company.owner != request.user:
+            raise PermissionDenied("You can only create payments for your own companies")
+        
+        serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
@@ -49,7 +52,7 @@ def payment_detail_view(request, pk):
         if request.user.is_staff:
             payment = Payment.objects.get(pk=pk)
         else:
-            payment = Payment.objects.get(pk=pk, user=request.user)
+            payment = Payment.objects.get(pk=pk, company__owner=request.user)
     except Payment.DoesNotExist:
         return Response({'error': 'Payment not found'}, status=status.HTTP_404_NOT_FOUND)
     
@@ -59,7 +62,7 @@ def payment_detail_view(request, pk):
     
     elif request.method in ['PUT', 'PATCH']:
         # Check permissions
-        if not request.user.is_staff and payment.user != request.user:
+        if not request.user.is_staff and payment.company.owner != request.user:
             raise PermissionDenied("You can only modify your own payments")
         
         partial = request.method == 'PATCH'
@@ -70,7 +73,7 @@ def payment_detail_view(request, pk):
     
     elif request.method == 'DELETE':
         # Check permissions
-        if not request.user.is_staff and payment.user != request.user:
+        if not request.user.is_staff and payment.company.owner != request.user:
             raise PermissionDenied("You can only delete your own payments")
         
         payment.delete()
@@ -88,8 +91,23 @@ def payment_pricing_view(request):
 @permission_classes([IsAuthenticated])
 def payment_setup_vault_view(request):
     """Setup vault for recurring payments"""
+    company_id = request.data.get('company_id')
+    plan_type = request.data.get('plan_type')
+    return_url = request.data.get('return_url')
+    cancel_url = request.data.get('cancel_url')
+    
+    if not all([company_id, plan_type, return_url, cancel_url]):
+        return Response({'error': 'Missing required fields'}, status=400)
+        
+    company = get_object_or_404(Company, id=company_id, owner=request.user)
+    
     try:
-        setup_token = create_vault_setup_token()
+        setup_token = create_vault_setup_token(
+            plan_type=plan_type,
+            company_name=company.name,
+            return_url=return_url,
+            cancel_url=cancel_url
+        )
         return Response(setup_token)
     except Exception as e:
         return Response({'error': str(e)}, status=500)
@@ -115,33 +133,44 @@ def payment_create_token_view(request):
 @permission_classes([IsAuthenticated])
 def payment_create_order_view(request):
     """Create a PayPal order for plan upgrade"""
+    company_id = request.data.get('company_id')
     plan_type = request.data.get('plan_type')
     
     if plan_type not in PLAN_PRICING:
         return Response({'error': 'Invalid plan type'}, status=400)
     
     amount = PLAN_PRICING[plan_type]['amount']
+    currency = request.data.get('currency', 'USD')
+    return_url = request.data.get('return_url', f"{settings.FRONTEND_URL}/payment/success")
+    cancel_url = request.data.get('cancel_url', f"{settings.FRONTEND_URL}/payment/cancel")
+    
+    company = get_object_or_404(Company, id=company_id, owner=request.user)
     
     try:
-        order_data = create_paypal_order(amount, 'USD')
-        
-        # Create payment record
-        payment = Payment.objects.create(
-            user=request.user,
-            plan_type=plan_type,
-            paypal_order_id=order_data['id'],
+        order = create_paypal_order(
             amount=amount,
+            currency=currency,
+            plan_type=plan_type,
+            company_name=company.name,
+            return_url=return_url,
+            cancel_url=cancel_url
+        )
+        
+        # Store payment record
+        payment = Payment.objects.create(
+            company=company,
+            plan_type=plan_type,
+            paypal_order_id=order['id'],
+            amount=amount,
+            currency=currency,
             status='created',
-            raw_response=order_data
+            raw_response=order
         )
         
         return Response({
-            'order_id': order_data['id'],
-            'payment_id': payment.id,
-            'approval_url': next(
-                link['href'] for link in order_data['links'] 
-                if link['rel'] == 'approve'
-            )
+            'order_id': order['id'],
+            'approval_url': next(link['href'] for link in order['links'] if link['rel'] == 'approve'),
+            'payment_id': payment.id
         })
         
     except Exception as e:
@@ -160,8 +189,8 @@ def payment_capture_view(request):
     try:
         payment = get_object_or_404(Payment, paypal_order_id=paypal_order_id)
         
-        # Only allow user to capture their own payments
-        if payment.user != request.user and not request.user.is_staff:
+        # Only allow company owner to capture their own payments
+        if payment.company.owner != request.user and not request.user.is_staff:
             return Response({'error': 'Permission denied'}, status=403)
         
         capture_result = capture_paypal_order(paypal_order_id)
@@ -174,17 +203,20 @@ def payment_capture_view(request):
             
             # Upgrade or create plan
             plan, created = Plan.objects.get_or_create(
-                user=request.user,
+                company=payment.company,
                 defaults={'plan_type': payment.plan_type}
             )
             
             if not created:
                 plan.plan_type = payment.plan_type
-                plan.review_limit = PLAN_PRICING[payment.plan_type]['review_limit']
-                plan.save()
+            
+            # Set review limit based on plan
+            plan.review_limit = PLAN_PRICING[payment.plan_type]['review_limit']
+            plan.save()
             
             return Response({
-                'message': 'Payment successful and plan upgraded',
+                'status': 'success',
+                'payment': PaymentSerializer(payment).data,
                 'plan': {
                     'type': plan.plan_type,
                     'review_limit': plan.review_limit
@@ -194,28 +226,34 @@ def payment_capture_view(request):
             payment.status = 'failed'
             payment.raw_response = capture_result
             payment.save()
-            return Response({'error': 'Payment failed'}, status=400)
+            return Response({'status': 'failed', 'message': 'Payment capture failed'}, status=400)
             
-    except Payment.DoesNotExist:
-        return Response({'error': 'Payment not found'}, status=404)
     except Exception as e:
         return Response({'error': str(e)}, status=500)
 
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def payment_user_plan_view(request):
-    """Get current plan for user"""
+def payment_company_plan_view(request):
+    """Get current plan for user's company"""
+    company_id = request.query_params.get('company_id')
+    if not company_id:
+        return Response({'error': 'Company ID required'}, status=400)
+        
+    company = get_object_or_404(Company, id=company_id, owner=request.user)
+    
     try:
-        plan = Plan.objects.get(user=request.user)
+        plan = company.plan
         return Response({
+            'company': company.name,
             'plan_type': plan.plan_type,
             'review_limit': plan.review_limit,
-            'created_at': plan.created_at
+            'current_reviews': company.reviews.count()
         })
     except Plan.DoesNotExist:
         return Response({
-            'plan_type': 'basic',
-            'review_limit': 50,
-            'created_at': None
+            'company': company.name,
+            'plan_type': 'free',
+            'review_limit': 10,
+            'current_reviews': company.reviews.count()
         })

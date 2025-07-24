@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.db import transaction
 from .models import (
-    Business, Review, ReviewImage, ReviewLike, Category, Company, Order, 
+    Business, Review, ReviewImage, ReviewLike, Category, Order, 
     SurveyQuestion, Plan, Badge, QRFeedback, ReviewAnswer, ReviewCriteria,
     ReviewCriteriaRating, EmailTemplate, WidgetSettings, Payment
 )
@@ -189,18 +189,6 @@ class BusinessSummarySerializer(serializers.ModelSerializer):
         fields = (
             'id', 'name', 'category', 'logo', 'average_rating', 'total_reviews'
         )
-
-
-class CompanySerializer(serializers.ModelSerializer):
-    """Serializer for Company model"""
-    
-    class Meta:
-        model = Company
-        fields = [
-            'id', 'name', 'unique_id', 'logo', 'website', 'email', 
-            'phone_number', 'country', 'is_active', 'created_at', 'updated_at'
-        ]
-        read_only_fields = ['unique_id', 'created_at', 'updated_at']
 
 
 class ReviewCriteriaSerializer(serializers.ModelSerializer):

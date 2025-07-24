@@ -3,6 +3,8 @@ from .views import (
     # Business views
     business_view,
     business_dashboard_view,
+    business_reviews_view,
+    business_public_reviews_view,
     # Order views
     order_list_create_view,
     order_detail_view,
@@ -16,11 +18,8 @@ from .views import (
     # Review Criteria views
     review_criteria_list_create_view,
     review_criteria_detail_view,
-    # Public views
-    public_review_form,
-    submit_public_review,
-    category_list_view,
-    widget_data,
+    # Dashboard stats
+    dashboard_stats_view,
 )
 from .views_payment import (
     payment_list_create_view,
@@ -40,6 +39,11 @@ urlpatterns = [
     # Business endpoints (single business per user)
     path('business/', business_view, name='business'),
     path('business/dashboard/', business_dashboard_view, name='business-dashboard'),
+    path('business/reviews/', business_reviews_view, name='business-reviews'),
+    path('business/public-reviews/', business_public_reviews_view, name='business-public-reviews'),
+    
+    # Dashboard stats
+    path('dashboard/stats/', dashboard_stats_view, name='dashboard-stats'),
     
     # Order management
     path('orders/', order_list_create_view, name='order-list-create'),
@@ -56,12 +60,6 @@ urlpatterns = [
     # Review criteria
     path('review-criteria/', review_criteria_list_create_view, name='review-criteria-list-create'),
     path('review-criteria/<int:pk>/', review_criteria_detail_view, name='review-criteria-detail'),
-    
-    # Public endpoints
-    path('categories/', category_list_view, name='category-list'),
-    path('review-form/<str:token>/', public_review_form, name='public-review-form'),
-    path('submit-review/<str:token>/', submit_public_review, name='submit-public-review'),
-    path('widget-data/<int:user_id>/', widget_data, name='widget-data'),
     
     # Payment endpoints
     path('payments/', payment_list_create_view, name='payment-list-create'),

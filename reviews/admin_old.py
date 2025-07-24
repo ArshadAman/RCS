@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Business, Review, ReviewImage, ReviewLike, Category, Order, SurveyQuestion, Plan, Badge, QRFeedback, ReviewAnswer, Payment, ReviewCriteria
+from .models import Business, Review, ReviewImage, ReviewLike, Category, Company, Order, SurveyQuestion, Plan, Badge, QRFeedback, ReviewAnswer, Payment
 
 
 @admin.register(Category)
@@ -14,7 +14,7 @@ class CategoryAdmin(admin.ModelAdmin):
 class BusinessAdmin(admin.ModelAdmin):
     list_display = ('name', 'category', 'owner', 'average_rating', 'total_reviews', 'is_active', 'created_at')
     list_filter = ('category', 'is_active', 'created_at')
-    search_fields = ('name', 'description', 'category', 'owner__email', 'owner__username')
+    search_fields = ('name', 'description', 'category', 'owner__email')
     readonly_fields = ('average_rating', 'total_reviews', 'created_at', 'updated_at')
     ordering = ('-created_at',)
     
@@ -56,7 +56,7 @@ class ReviewAdmin(admin.ModelAdmin):
     
     fieldsets = (
         ('Review Information', {
-            'fields': ('business', 'order', 'overall_rating', 'service_rating', 'quality_rating', 'value_rating', 'would_recommend', 'comment')
+            'fields': ('business', 'order', 'overall_rating', 'would_recommend', 'comment')
         }),
         ('Customer Information', {
             'fields': ('reviewer_name', 'reviewer_email')
@@ -108,43 +108,51 @@ class ReviewLikeAdmin(admin.ModelAdmin):
     ordering = ('-created_at',)
 
 
+@admin.register(Company)
+class CompanyAdmin(admin.ModelAdmin):
+    list_display = ('name', 'unique_id', 'owner', 'is_active', 'created_at')
+    search_fields = ('name', 'unique_id', 'owner__email')
+    list_filter = ('is_active', 'created_at')
+    ordering = ('-created_at',)
+
+
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
     list_display = ('order_number', 'business', 'customer_email', 'product_service_name', 'purchase_date', 'status', 'created_at')
     search_fields = ('order_number', 'customer_email', 'product_service_name', 'customer_name')
-    list_filter = ('business__owner', 'status', 'purchase_date', 'created_at')
+    list_filter = ('business__company', 'status', 'purchase_date', 'created_at')
     ordering = ('-created_at',)
 
 
 @admin.register(SurveyQuestion)
 class SurveyQuestionAdmin(admin.ModelAdmin):
-    list_display = ('question_text', 'user', 'question_type', 'is_active', 'is_required', 'order', 'created_at')
+    list_display = ('question_text', 'company', 'question_type', 'is_active', 'is_required', 'order', 'created_at')
     search_fields = ('question_text',)
-    list_filter = ('user', 'question_type', 'is_active', 'is_required')
-    ordering = ('user', 'order')
+    list_filter = ('company', 'question_type', 'is_active', 'is_required')
+    ordering = ('company', 'order')
 
 
 @admin.register(Plan)
 class PlanAdmin(admin.ModelAdmin):
-    list_display = ('user', 'plan_type', 'review_limit', 'created_at')
+    list_display = ('company', 'plan_type', 'review_limit', 'created_at')
     list_filter = ('plan_type',)
-    search_fields = ('user__username', 'user__email')
+    search_fields = ('company__name',)
     ordering = ('-created_at',)
 
 
 @admin.register(Badge)
 class BadgeAdmin(admin.ModelAdmin):
-    list_display = ('user', 'badge_type', 'percentage', 'assigned_at')
+    list_display = ('company', 'badge_type', 'percentage', 'assigned_at')
     list_filter = ('badge_type',)
-    search_fields = ('user__username', 'user__email')
+    search_fields = ('company__name',)
     ordering = ('-assigned_at',)
 
 
 @admin.register(QRFeedback)
 class QRFeedbackAdmin(admin.ModelAdmin):
-    list_display = ('user', 'branch_id', 'rating', 'ip_address', 'submitted_at')
-    search_fields = ('branch_id', 'user__username', 'comment')
-    list_filter = ('user', 'rating', 'submitted_at')
+    list_display = ('company', 'branch_id', 'rating', 'ip_address', 'submitted_at')
+    search_fields = ('branch_id', 'company__name', 'comment')
+    list_filter = ('company', 'rating', 'submitted_at')
     ordering = ('-submitted_at',)
 
 
@@ -158,15 +166,7 @@ class ReviewAnswerAdmin(admin.ModelAdmin):
 
 @admin.register(Payment)
 class PaymentAdmin(admin.ModelAdmin):
-    list_display = ('user', 'plan_type', 'amount', 'currency', 'status', 'paypal_order_id', 'created_at')
+    list_display = ('company', 'plan_type', 'amount', 'currency', 'status', 'paypal_order_id', 'created_at')
     list_filter = ('status', 'plan_type', 'currency', 'created_at')
-    search_fields = ('user__username', 'user__email', 'paypal_order_id')
+    search_fields = ('company__name', 'paypal_order_id')
     readonly_fields = ('raw_response',)
-
-
-@admin.register(ReviewCriteria)
-class ReviewCriteriaAdmin(admin.ModelAdmin):
-    list_display = ('user', 'name', 'is_active', 'created_at')
-    list_filter = ('is_active', 'created_at')
-    search_fields = ('user__username', 'user__email', 'name')
-    ordering = ('-created_at',)
