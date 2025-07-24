@@ -13,7 +13,6 @@ from .views import (
     review_respond_view,
     review_criteria_list_create_view,
     review_criteria_detail_view,
-    category_list_view,
     public_review_form,
     submit_public_review,
     widget_data,
@@ -44,7 +43,6 @@ urlpatterns = [
     path('review-criteria/<int:pk>/', review_criteria_detail_view, name='review-criteria-detail'),
     
     # Public
-    path('categories/', category_list_view, name='categories'),
     path('review-form/<str:token>/', public_review_form, name='review-form'),
     path('submit-review/<str:token>/', submit_public_review, name='submit-review'),
     path('widget-data/<int:user_id>/', widget_data, name='widget-data'),

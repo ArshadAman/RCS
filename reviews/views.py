@@ -19,13 +19,13 @@ import base64
 User = get_user_model()
 
 from .models import (
-    Business, Review, ReviewImage, ReviewLike, Category, Order, 
+    Business, Review, ReviewImage, ReviewLike, Order, 
     SurveyQuestion, Plan, Badge, QRFeedback, ReviewAnswer, ReviewCriteria,
     ReviewCriteriaRating, EmailTemplate, WidgetSettings, Payment
 )
 from .serializers import (
     BusinessSerializer, BusinessCreateSerializer, ReviewSerializer,
-    ReviewCreateSerializer, ReviewLikeSerializer, CategorySerializer,
+    ReviewCreateSerializer, ReviewLikeSerializer,
     OrderSerializer, SurveyQuestionSerializer,
     PlanSerializer, BadgeSerializer, QRFeedbackSerializer,
     ReviewAnswerSerializer, ReviewCriteriaSerializer, ReviewCriteriaRatingSerializer,
@@ -113,7 +113,7 @@ def _send_review_email(order):
             value={
                 'name': 'My Awesome Restaurant',
                 'description': 'Best pizza in town!',
-                'category': 1,
+                'category': 'Restaurant',
                 'address': '123 Main St, City, State 12345',
                 'phone_number': '+1-555-123-4567',
                 'email': 'contact@myrestaurant.com',
@@ -137,10 +137,7 @@ def _send_review_email(order):
                 'id': 1,
                 'name': 'My Awesome Restaurant',
                 'description': 'Best pizza in town!',
-                'category': {
-                    'id': 1,
-                    'name': 'Restaurant'
-                },
+                'category': 'Restaurant',
                 'address': '123 Main St, City, State 12345',
                 'phone_number': '+1-555-123-4567',
                 'email': 'contact@myrestaurant.com',
@@ -1396,71 +1393,6 @@ def widget_data(request, user_id):
             {'error': 'Business not found'},
             status=status.HTTP_404_NOT_FOUND
         )
-
-
-# Categories
-@extend_schema(
-    operation_id='category_list',
-    tags=['Business'],
-    summary='List Business Categories',
-    description="""
-    Retrieve the list of all available business categories.
-    
-    This endpoint returns all business categories that can be assigned to a business.
-    Categories help organize businesses and may affect pricing tiers or feature availability.
-    """,
-    examples=[
-        OpenApiExample(
-            'Categories Response',
-            value=[
-                {
-                    'id': 1,
-                    'name': 'Restaurant',
-                    'slug': 'restaurant',
-                    'description': 'Food service establishments',
-                    'is_active': True
-                },
-                {
-                    'id': 2,
-                    'name': 'Retail',
-                    'slug': 'retail',
-                    'description': 'Retail stores and shops',
-                    'is_active': True
-                },
-                {
-                    'id': 3,
-                    'name': 'Service',
-                    'slug': 'service',
-                    'description': 'Service-based businesses',
-                    'is_active': True
-                },
-                {
-                    'id': 4,
-                    'name': 'Healthcare',
-                    'slug': 'healthcare',
-                    'description': 'Medical and healthcare services',
-                    'is_active': True
-                }
-            ],
-            response_only=True
-        )
-    ],
-    responses={
-        200: 'List of business categories',
-        401: OpenApiExample(
-            'Authentication Required',
-            value={'detail': 'Authentication credentials were not provided.'},
-            response_only=True
-        )
-    }
-)
-@api_view(['GET'])
-@permission_classes([AllowAny])
-def category_list_view(request):
-    """List all active categories"""
-    categories = Category.objects.filter(is_active=True)
-    serializer = CategorySerializer(categories, many=True)
-    return Response(serializer.data)
 
 
 # Public review submission

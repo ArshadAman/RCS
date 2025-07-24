@@ -1,13 +1,5 @@
 from django.contrib import admin
-from .models import Business, Review, ReviewImage, ReviewLike, Category, Order, SurveyQuestion, Plan, Badge, QRFeedback, ReviewAnswer, Payment, ReviewCriteria
-
-
-@admin.register(Category)
-class CategoryAdmin(admin.ModelAdmin):
-    list_display = ('name', 'is_active', 'created_at')
-    list_filter = ('is_active', 'created_at')
-    search_fields = ('name', 'description')
-    ordering = ('name',)
+from .models import Business, Review, ReviewImage, ReviewLike, Order, SurveyQuestion, Plan, Badge, QRFeedback, ReviewAnswer, Payment, ReviewCriteria
 
 
 @admin.register(Business)
