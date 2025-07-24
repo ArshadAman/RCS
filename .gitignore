@@ -34,3 +34,4 @@ __pycache__/
 *.pyo
 *.pyd
 *.pdb
+db.sqlite3
