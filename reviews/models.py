@@ -70,11 +70,6 @@ class ReviewCriteria(models.Model):
     
     def __str__(self):
         return f"{self.user.username} - {self.name}"
-        verbose_name = 'Payment'
-        verbose_name_plural = 'Payments'
-
-    def __str__(self):
-        return f"{self.company.name} - {self.plan_type} - {self.status}"
 
 
 class Business(models.Model):

@@ -48,7 +48,7 @@ class ReviewAdmin(admin.ModelAdmin):
     
     fieldsets = (
         ('Review Information', {
-            'fields': ('business', 'order', 'overall_rating', 'service_rating', 'quality_rating', 'value_rating', 'would_recommend', 'comment')
+            'fields': ('business', 'order', 'overall_rating', 'would_recommend', 'comment')
         }),
         ('Customer Information', {
             'fields': ('reviewer_name', 'reviewer_email')
