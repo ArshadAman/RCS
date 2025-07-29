@@ -184,18 +184,69 @@ class UserLoginSerializer(serializers.Serializer):
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
-    """Serializer for user profile"""
+    """Comprehensive serializer for user profile with business and plan details"""
     
     full_name = serializers.CharField(read_only=True)
+    
+    # Business information
+    business_name = serializers.CharField(source='business.name', read_only=True)
+    business_website = serializers.URLField(source='business.website', read_only=True)
+    business_email = serializers.EmailField(source='business.email', read_only=True)
+    business_phone = serializers.CharField(source='business.phone_number', read_only=True)
+    business_address = serializers.CharField(source='business.address', read_only=True)
+    business_category = serializers.CharField(source='business.category', read_only=True)
+    business_logo = serializers.ImageField(source='business.logo', read_only=True)
+    business_description = serializers.CharField(source='business.description', read_only=True)
+    business_average_rating = serializers.ReadOnlyField(source='business.average_rating')
+    business_total_reviews = serializers.ReadOnlyField(source='business.total_reviews')
+    business_recommendation_percentage = serializers.ReadOnlyField(source='business.recommendation_percentage')
+    
+    # Plan information
+    plan_type = serializers.CharField(source='plan.plan_type', read_only=True)
+    plan_display_name = serializers.CharField(source='plan.get_plan_type_display', read_only=True)
+    review_limit = serializers.IntegerField(source='plan.review_limit', read_only=True)
+    plan_created_at = serializers.DateTimeField(source='plan.created_at', read_only=True)
+    
+    # Plan features based on plan type
+    plan_features = serializers.SerializerMethodField()
+    
+    # Badge information if exists
+    badge_type = serializers.CharField(source='badge.badge_type', read_only=True)
+    badge_percentage = serializers.FloatField(source='badge.percentage', read_only=True)
+    badge_display_name = serializers.CharField(source='badge.get_badge_type_display', read_only=True)
     
     class Meta:
         model = User
         fields = (
             'id', 'username', 'email', 'first_name', 'last_name', 'full_name',
             'avatar', 'phone_number', 'date_of_birth', 'is_verified',
-            'date_joined', 'last_login'
+            'date_joined', 'last_login',
+            # Business fields
+            'business_name', 'business_website', 'business_email', 'business_phone',
+            'business_address', 'business_category', 'business_logo', 'business_description',
+            'business_average_rating', 'business_total_reviews', 'business_recommendation_percentage',
+            # Plan fields
+            'plan_type', 'plan_display_name', 'review_limit', 'plan_created_at', 'plan_features',
+            # Badge fields
+            'badge_type', 'badge_percentage', 'badge_display_name'
         )
         read_only_fields = ('id', 'username', 'email', 'is_verified', 'date_joined', 'last_login')
+    
+    def get_plan_features(self, obj):
+        """Return plan-specific features and limits with pricing info"""
+        from reviews.plan_data import get_plan_data
+        
+        if not hasattr(obj, 'plan') or not obj.plan:
+            return get_plan_data('basic')
+        
+        plan_type = obj.plan.plan_type
+        plan_data = get_plan_data(plan_type)
+        
+        # Override review_limit with actual user's limit
+        plan_data['review_limit'] = obj.plan.review_limit
+        plan_data['plan_created_at'] = obj.plan.created_at.isoformat() if obj.plan.created_at else None
+        
+        return plan_data
 
 
 class PasswordChangeSerializer(serializers.Serializer):

@@ -9,7 +9,8 @@ from .views import (
     password_reset_request_view,
     password_reset_confirm_view,
     logout_view,
-    user_profile_view
+    user_profile_view,
+    plans_view
 )
 
 app_name = 'authentication'
@@ -25,4 +26,5 @@ urlpatterns = [
     path('password/reset/confirm/', password_reset_confirm_view, name='password_reset_confirm'),
     path('email/verify/', email_verification_view, name='email_verify'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('plans/', plans_view, name='plans'),
 ]
