@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Review Auto-Published</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #ffc107;
+            color: #212529;
+            padding: 20px;
+            text-align: center;
+            border-radius: 8px 8px 0 0;
+        }
+        .content {
+            background-color: #f9f9f9;
+            padding: 30px;
+            border-radius: 0 0 8px 8px;
+        }
+        .review-preview {
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border-left: 4px solid #ffc107;
+        }
+        .stars {
+            color: #ffd700;
+            font-size: 18px;
+            margin: 10px 0;
+        }
+        .info-box {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border: 1px solid #bee5eb;
+        }
+        .button {
+            display: inline-block;
+            background-color: #007bff;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 20px 5px;
+            font-weight: bold;
+        }
+        .footer {
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📅 Review Auto-Published</h1>
+    </div>
+    
+    <div class="content">
+        <p>Dear {{ business.owner.first_name|default:"Business Owner" }},</p>
+        
+        <p>The 7-day response period has ended, and the following review for <strong>{{ business.name }}</strong> has been automatically published as scheduled.</p>
+        
+        <div class="review-preview">
+            <h3>Published Review:</h3>
+            <div class="stars">
+                {% for i in "12345" %}
+                    {% if forloop.counter <= review.overall_rating %}⭐{% else %}☆{% endif %}
+                {% endfor %}
+                ({{ review.overall_rating }}/5)
+            </div>
+            <p><strong>Customer:</strong> {{ review.reviewer_name }}</p>
+            <p><strong>Email:</strong> {{ review.reviewer_email }}</p>
+            {% if review.product_name %}
+                <p><strong>Product/Service:</strong> {{ review.product_name }}</p>
+            {% endif %}
+            <p><strong>Review:</strong></p>
+            <p><em>"{{ review.comment }}"</em></p>
+            <p><small>Auto-published on {{ review.auto_published_at|date:"M d, Y \a\t g:i A" }}</small></p>
+        </div>
+        
+        <div class="info-box">
+            <h4>ℹ️ What This Means</h4>
+            <p>Since no response was provided within the 7-day window, this review is now visible to the public as part of your business profile. This is our standard policy to ensure transparency and fairness for all customers.</p>
+        </div>
+        
+        <p><strong>You can still take action:</strong></p>
+        <ul>
+            <li>📞 <strong>Contact the customer</strong> to address their concerns privately</li>
+            <li>💬 <strong>Add a public response</strong> to show how you handle feedback</li>
+            <li>🔧 <strong>Use this feedback</strong> to improve your products/services</li>
+            <li>🌟 <strong>Focus on positive reviews</strong> to improve your overall rating</li>
+        </ul>
+        
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="{{ site_url }}/reviews/respond/{{ review.id }}/" class="button">Add Response Now</a>
+            <a href="{{ site_url }}/dashboard/" class="button" style="background-color: #6c757d;">View Dashboard</a>
+        </div>
+        
+        <p><strong>Moving Forward:</strong></p>
+        <ul>
+            <li>Set up alerts to ensure you don't miss future reviews</li>
+            <li>Consider implementing a proactive customer feedback system</li>
+            <li>Train your team on customer service best practices</li>
+            <li>Regularly monitor your online reputation</li>
+        </ul>
+        
+        <p>Remember, how you respond to negative feedback can demonstrate your commitment to customer satisfaction and potentially convert dissatisfied customers into loyal ones.</p>
+        
+        <p>If you need assistance with reputation management or customer service strategies, our support team is here to help.</p>
+        
+        <p>Best regards,<br>
+        {{ site_name }} Team</p>
+    </div>
+    
+    <div class="footer">
+        <p>This email was sent by {{ site_name }}.</p>
+        <p>Review published: {{ review.auto_published_at|date:"M d, Y \a\t g:i A" }}</p>
+        <p>Review ID: {{ review.id }}</p>
+    </div>
+</body>
+</html>

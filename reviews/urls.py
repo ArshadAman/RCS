@@ -19,6 +19,9 @@ from .views import (
     # Consolidated views
     payment_view,
     widget_view,
+    # Template views
+    submit_review_template,
+    published_reviews_template,
 )
 
 # Daily Sales Report views
@@ -57,6 +60,10 @@ urlpatterns = [
     path('review-form/<str:token>/', public_review_form, name='review-form'),
     path('submit-review/<str:token>/', submit_public_review, name='submit-review'),
     path('widget-data/<int:user_id>/', widget_data, name='widget-data'),
+    
+    # Template-based views (NEW)
+    path('submit/<str:token>/', submit_review_template, name='submit-review-template'),
+    path('published/<int:user_id>/', published_reviews_template, name='published-reviews-template'),
     
     # Daily Sales Reports & Review System
     path('sales-report/upload/', upload_sales_report, name='upload-sales-report'),

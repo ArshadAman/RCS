@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thank You for Your Review</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #28a745;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 8px 8px 0 0;
+        }
+        .content {
+            background-color: #f9f9f9;
+            padding: 30px;
+            border-radius: 0 0 8px 8px;
+        }
+        .review-preview {
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border-left: 4px solid #28a745;
+        }
+        .stars {
+            color: #ffd700;
+            font-size: 18px;
+            margin: 10px 0;
+        }
+        .footer {
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Thank You for Your Positive Review! ⭐</h1>
+    </div>
+    
+    <div class="content">
+        <p>Dear {{ review.reviewer_name }},</p>
+        
+        <p>Thank you so much for taking the time to share your positive experience with <strong>{{ business.name }}</strong>!</p>
+        
+        <div class="review-preview">
+            <h3>Your Review:</h3>
+            <div class="stars">
+                {% for i in "12345" %}
+                    {% if forloop.counter <= review.overall_rating %}⭐{% else %}☆{% endif %}
+                {% endfor %}
+                ({{ review.overall_rating }}/5)
+            </div>
+            <p><em>"{{ review.comment }}"</em></p>
+            <p><strong>- {{ review.reviewer_name }}</strong></p>
+        </div>
+        
+        <p><strong>Great news!</strong> Your review has been published immediately and is now visible to other customers. Your positive feedback helps others make informed decisions and encourages our team to continue providing excellent service.</p>
+        
+        <p><strong>What happens next:</strong></p>
+        <ul>
+            <li>✅ Your review is live and visible to potential customers</li>
+            <li>📊 It contributes to our overall rating and reputation</li>
+            <li>💪 It motivates our team to maintain high standards</li>
+            <li>🤝 It helps other customers choose our services with confidence</li>
+        </ul>
+        
+        <p>We're thrilled that you had such a positive experience with us. Your satisfaction is our top priority, and knowing that we've met your expectations means the world to us.</p>
+        
+        <p>We look forward to serving you again in the future!</p>
+        
+        <p>Warm regards,<br>
+        The {{ business.name }} Team</p>
+    </div>
+    
+    <div class="footer">
+        <p>This email was sent by {{ site_name }}.</p>
+        <p>{{ business.name }} - {{ business.address|default:"" }}</p>
+        {% if business.website %}
+            <p><a href="{{ business.website }}">Visit our website</a></p>
+        {% endif %}
+    </div>
+</body>
+</html>

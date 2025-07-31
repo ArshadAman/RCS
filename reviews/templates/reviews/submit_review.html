@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Submit Review - {{ business.name }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .business-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        textarea {
+            height: 100px;
+            resize: vertical;
+        }
+        .rating-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .rating-item {
+            flex: 1;
+            min-width: 200px;
+        }
+        .star-rating {
+            display: flex;
+            gap: 5px;
+            margin-top: 5px;
+        }
+        .star {
+            font-size: 24px;
+            color: #ddd;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .star:hover,
+        .star.active {
+            color: #ffd700;
+        }
+        .btn-primary {
+            background: #007bff;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            display: block;
+            margin: 20px auto 0;
+        }
+        .btn-primary:hover {
+            background: #0056b3;
+        }
+        .recommendation {
+            margin: 20px 0;
+        }
+        .recommendation label {
+            display: inline;
+            margin-left: 10px;
+            font-weight: normal;
+        }
+        .negative-comment {
+            display: none;
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+        }
+        .alert {
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+        }
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Share Your Experience</h1>
+            <p>Your feedback helps us improve our service</p>
+        </div>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <div class="business-info">
+            <h3>{{ business.name }}</h3>
+            <p><strong>Category:</strong> {{ business.category }}</p>
+            {% if review_request %}
+                <p><strong>Order ID:</strong> {{ review_request.order_id }}</p>
+                <p><strong>Order Date:</strong> {{ review_request.order_date|date:"F d, Y" }}</p>
+            {% endif %}
+        </div>
+
+        <form method="post" id="reviewForm">
+            {% csrf_token %}
+            
+            <div class="form-group">
+                <label for="reviewer_name">Your Name *</label>
+                <input type="text" id="reviewer_name" name="reviewer_name" required>
+            </div>
+
+            <div class="form-group">
+                <label for="reviewer_email">Your Email *</label>
+                <input type="email" id="reviewer_email" name="reviewer_email" required>
+            </div>
+
+            <div class="rating-group">
+                <div class="rating-item">
+                    <label>Logistics Rating *</label>
+                    <div class="star-rating" data-rating="logistics_rating">
+                        <span class="star" data-value="1">★</span>
+                        <span class="star" data-value="2">★</span>
+                        <span class="star" data-value="3">★</span>
+                        <span class="star" data-value="4">★</span>
+                        <span class="star" data-value="5">★</span>
+                    </div>
+                    <input type="hidden" id="logistics_rating" name="logistics_rating" required>
+                </div>
+
+                <div class="rating-item">
+                    <label>Communication Rating *</label>
+                    <div class="star-rating" data-rating="communication_rating">
+                        <span class="star" data-value="1">★</span>
+                        <span class="star" data-value="2">★</span>
+                        <span class="star" data-value="3">★</span>
+                        <span class="star" data-value="4">★</span>
+                        <span class="star" data-value="5">★</span>
+                    </div>
+                    <input type="hidden" id="communication_rating" name="communication_rating" required>
+                </div>
+
+                <div class="rating-item">
+                    <label>Website Usability Rating *</label>
+                    <div class="star-rating" data-rating="website_usability_rating">
+                        <span class="star" data-value="1">★</span>
+                        <span class="star" data-value="2">★</span>
+                        <span class="star" data-value="3">★</span>
+                        <span class="star" data-value="4">★</span>
+                        <span class="star" data-value="5">★</span>
+                    </div>
+                    <input type="hidden" id="website_usability_rating" name="website_usability_rating" required>
+                </div>
+            </div>
+
+            <div class="recommendation">
+                <label>Would you recommend this business to others? *</label>
+                <div style="margin-top: 10px;">
+                    <input type="radio" id="recommend_yes" name="would_recommend" value="true" required>
+                    <label for="recommend_yes">Yes, I would recommend</label>
+                </div>
+                <div>
+                    <input type="radio" id="recommend_no" name="would_recommend" value="false" required>
+                    <label for="recommend_no">No, I would not recommend</label>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="positive_comment">What did you like about your experience?</label>
+                <textarea id="positive_comment" name="positive_comment" placeholder="Share what you enjoyed about our service..."></textarea>
+            </div>
+
+            <div class="negative-comment" id="negativeCommentSection">
+                <label for="negative_comment">Please tell us what we can improve (minimum 50 characters) *</label>
+                <textarea id="negative_comment" name="negative_comment" placeholder="Help us understand what went wrong and how we can improve..." minlength="50"></textarea>
+                <small style="color: #666;">This feedback helps us improve our service. Negative reviews will be shared with the business owner for response before being published.</small>
+            </div>
+
+            <button type="submit" class="btn-primary">Submit Review</button>
+        </form>
+    </div>
+
+    <script>
+        // Star rating functionality
+        document.querySelectorAll('.star-rating').forEach(rating => {
+            const stars = rating.querySelectorAll('.star');
+            const input = document.getElementById(rating.dataset.rating);
+            
+            stars.forEach((star, index) => {
+                star.addEventListener('click', () => {
+                    const value = parseInt(star.dataset.value);
+                    input.value = value;
+                    
+                    stars.forEach((s, i) => {
+                        s.classList.toggle('active', i < value);
+                    });
+                    
+                    checkNegativeReview();
+                });
+                
+                star.addEventListener('mouseover', () => {
+                    const value = parseInt(star.dataset.value);
+                    stars.forEach((s, i) => {
+                        s.style.color = i < value ? '#ffd700' : '#ddd';
+                    });
+                });
+            });
+            
+            rating.addEventListener('mouseleave', () => {
+                const currentValue = parseInt(input.value) || 0;
+                stars.forEach((s, i) => {
+                    s.style.color = i < currentValue ? '#ffd700' : '#ddd';
+                });
+            });
+        });
+
+        // Show/hide negative comment section based on ratings and recommendation
+        function checkNegativeReview() {
+            const logistics = parseInt(document.getElementById('logistics_rating').value) || 0;
+            const communication = parseInt(document.getElementById('communication_rating').value) || 0;
+            const website = parseInt(document.getElementById('website_usability_rating').value) || 0;
+            const wouldRecommend = document.querySelector('input[name="would_recommend"]:checked');
+            
+            let overallRating = 0;
+            let ratingCount = 0;
+            
+            if (logistics > 0) { overallRating += logistics; ratingCount++; }
+            if (communication > 0) { overallRating += communication; ratingCount++; }
+            if (website > 0) { overallRating += website; ratingCount++; }
+            
+            if (ratingCount > 0) {
+                overallRating = Math.round(overallRating / ratingCount);
+            }
+            
+            const isNegative = overallRating < 3 || (wouldRecommend && wouldRecommend.value === 'false');
+            const negativeSection = document.getElementById('negativeCommentSection');
+            const negativeTextarea = document.getElementById('negative_comment');
+            
+            if (isNegative) {
+                negativeSection.style.display = 'block';
+                negativeTextarea.required = true;
+            } else {
+                negativeSection.style.display = 'none';
+                negativeTextarea.required = false;
+            }
+        }
+
+        // Add event listeners for recommendation radio buttons
+        document.querySelectorAll('input[name="would_recommend"]').forEach(radio => {
+            radio.addEventListener('change', checkNegativeReview);
+        });
+
+        // Form submission validation
+        document.getElementById('reviewForm').addEventListener('submit', function(e) {
+            const logistics = document.getElementById('logistics_rating').value;
+            const communication = document.getElementById('communication_rating').value;
+            const website = document.getElementById('website_usability_rating').value;
+            
+            if (!logistics || !communication || !website) {
+                e.preventDefault();
+                alert('Please provide ratings for all three categories (Logistics, Communication, Website Usability).');
+                return;
+            }
+            
+            const negativeSection = document.getElementById('negativeCommentSection');
+            const negativeComment = document.getElementById('negative_comment');
+            
+            if (negativeSection.style.display === 'block' && negativeComment.required) {
+                if (!negativeComment.value || negativeComment.value.trim().length < 50) {
+                    e.preventDefault();
+                    alert('Please provide detailed feedback (minimum 50 characters) to help us improve.');
+                    negativeComment.focus();
+                    return;
+                }
+            }
+        });
+    </script>
+</body>
+</html>

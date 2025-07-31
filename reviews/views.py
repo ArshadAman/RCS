@@ -4,11 +4,19 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.exceptions import ValidationError, PermissionDenied
 from django.db.models import Q, Avg, Count
+from django.db import transaction, models
 from django.utils import timezone
-from django.shortcuts import get_object_or_404
+from datetime import timedelta
+from django.shortcuts import get_object_or_404, render, redirect
 from django.core.mail import send_mail
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib import messages
+from django.http import Http404
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+from django.views.generic import TemplateView
+from django.urls import reverse
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
 from drf_spectacular.types import OpenApiTypes
 import uuid
@@ -2059,3 +2067,195 @@ def widget_view(request, user_id):
                               content_type='application/javascript', status=404)
         else:
             return HttpResponse("<div>Widget not available</div>", status=404)
+
+
+# ===== TEMPLATE-BASED VIEWS =====
+
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from django.http import Http404
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+from django.views.generic import TemplateView
+from django.urls import reverse
+from .forms import ReviewSubmissionForm, ReviewResponseForm
+from .email_utils import send_review_notification_email
+
+
+def submit_review_template(request, token):
+    """Template-based review submission form"""
+    try:
+        # Get the review request by token
+        from .models import ReviewRequest
+        review_request = ReviewRequest.objects.get(
+            email_token=token,
+            status='pending'
+        )
+    except ReviewRequest.DoesNotExist:
+        messages.error(request, 'Review request not found or has expired.')
+        return render(request, 'reviews/submit_review.html', {
+            'error': 'Review request not found or has expired.',
+            'form': ReviewSubmissionForm()
+        })
+    
+    # Check if expired
+    if review_request.is_expired:
+        review_request.status = 'expired'
+        review_request.save()
+        messages.error(request, 'This review request has expired.')
+        return render(request, 'reviews/submit_review.html', {
+            'error': 'This review request has expired.',
+            'form': ReviewSubmissionForm()
+        })
+    
+    if request.method == 'POST':
+        form = ReviewSubmissionForm(request.POST)
+        if form.is_valid():
+            try:
+                with transaction.atomic():
+                    # Create the review
+                    review = Review.objects.create(
+                        review_request=review_request,
+                        business=review_request.business,
+                        reviewer_name=form.cleaned_data['customer_name'],
+                        reviewer_email=form.cleaned_data['customer_email'],
+                        product_name=form.cleaned_data['product_name'],
+                        overall_rating=form.cleaned_data['rating'],
+                        comment=form.cleaned_data['review_text'],
+                        # Set recommendation based on rating
+                        would_recommend=form.cleaned_data['rating'] >= 3,
+                        # Set positive/negative comments based on rating
+                        positive_comment=form.cleaned_data['review_text'] if form.cleaned_data['rating'] >= 3 else '',
+                        negative_comment=form.cleaned_data['review_text'] if form.cleaned_data['rating'] < 3 else '',
+                        ip_address=get_client_ip(request),
+                        user_agent=request.META.get('HTTP_USER_AGENT', ''),
+                        # Status logic: positive reviews (>=3) publish instantly, negative reviews (<3) need moderation
+                        status='published' if form.cleaned_data['rating'] >= 3 else 'pending_moderation',
+                        # Set auto_publish_date for negative reviews (7 days from now)
+                        auto_publish_date=timezone.now() + timedelta(days=7) if form.cleaned_data['rating'] < 3 else None
+                    )
+                    
+                    # Update review request
+                    review_request.status = 'responded'
+                    review_request.responded_at = timezone.now()
+                    review_request.save()
+                    
+                    # Send notifications
+                    if form.cleaned_data['rating'] >= 3:
+                        # Positive review - thank the customer
+                        messages.success(request, 'Thank you for your positive review! It has been published.')
+                        # Send thank you email to customer
+                        send_review_notification_email(
+                            review, 
+                            email_type='customer_thank_you'
+                        )
+                    else:
+                        # Negative review - notify business owner and schedule for auto-publish
+                        messages.warning(request, 
+                            'Thank you for your feedback. We have forwarded your concerns to our team. '
+                            'They will have 7 days to respond before your review is automatically published.'
+                        )
+                        # Send notification to business owner
+                        send_review_notification_email(
+                            review, 
+                            email_type='business_negative_review'
+                        )
+                        # Schedule auto-publish task (will be implemented with Celery)
+                        from .tasks import schedule_auto_publish_review
+                        schedule_auto_publish_review.apply_async(
+                            args=[review.id],
+                            eta=review.auto_publish_date
+                        )
+                    
+                    return render(request, 'reviews/review_submitted.html', {
+                        'review': review,
+                        'business': review_request.business
+                    })
+                    
+            except Exception as e:
+                messages.error(request, f'An error occurred while submitting your review: {str(e)}')
+                
+    else:
+        # Pre-fill form with review request data
+        initial_data = {
+            'customer_name': review_request.customer_name,
+            'customer_email': review_request.customer_email,
+        }
+        form = ReviewSubmissionForm(initial=initial_data)
+    
+    context = {
+        'form': form,
+        'business': review_request.business,
+        'review_request': review_request
+    }
+    
+    return render(request, 'reviews/submit_review.html', context)
+
+
+def published_reviews_template(request, user_id):
+    """Template-based view to display published reviews for a business"""
+    try:
+        user = get_object_or_404(User, id=user_id)
+        business = get_object_or_404(Business, owner=user)
+    except (User.DoesNotExist, Business.DoesNotExist):
+        raise Http404("Business not found")
+    
+    # Get published reviews
+    reviews_qs = Review.objects.filter(
+        business=business, 
+        status='published'
+    ).order_by('-created_at')
+    
+    # Filter by rating if specified
+    rating_filter = request.GET.get('rating')
+    if rating_filter and rating_filter.isdigit():
+        rating_filter = int(rating_filter)
+        if 1 <= rating_filter <= 5:
+            reviews_qs = reviews_qs.filter(overall_rating=rating_filter)
+    
+    # Pagination
+    from django.core.paginator import Paginator
+    paginator = Paginator(reviews_qs, 10)  # 10 reviews per page
+    page_number = request.GET.get('page', 1)
+    reviews = paginator.get_page(page_number)
+    
+    # Calculate statistics
+    all_reviews = Review.objects.filter(business=business, status='published')
+    stats = {
+        'total_reviews': all_reviews.count(),
+        'avg_rating': all_reviews.aggregate(avg=models.Avg('overall_rating'))['avg'] or 0,
+        'rating_distribution': {},
+        'recommend_percent': 0
+    }
+    
+    if stats['total_reviews'] > 0:
+        stats['avg_rating'] = round(stats['avg_rating'], 1)
+        
+        # Rating distribution
+        for i in range(1, 6):
+            stats['rating_distribution'][str(i)] = all_reviews.filter(overall_rating=i).count()
+        
+        # Recommendation percentage
+        recommended_count = all_reviews.filter(overall_rating__gte=4).count()
+        stats['recommend_percent'] = round((recommended_count / stats['total_reviews']) * 100, 1)
+    
+    context = {
+        'business': business,
+        'reviews': reviews,
+        'stats': stats,
+        'rating_filter': rating_filter,
+        'paginator': paginator
+    }
+    
+    return render(request, 'reviews/published_reviews.html', context)
+
+
+# Helper function to get client IP
+def get_client_ip(request):
+    """Get the client IP address from request"""
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        ip = x_forwarded_for.split(',')[0]
+    else:
+        ip = request.META.get('REMOTE_ADDR')
+    return ip

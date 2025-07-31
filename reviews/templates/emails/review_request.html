@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Please Share Your Experience</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #007bff;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 8px 8px 0 0;
+        }
+        .content {
+            background-color: #f9f9f9;
+            padding: 30px;
+            border-radius: 0 0 8px 8px;
+        }
+        .button {
+            display: inline-block;
+            background-color: #28a745;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 20px 0;
+            font-weight: bold;
+        }
+        .business-info {
+            background-color: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border-left: 4px solid #007bff;
+        }
+        .footer {
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>We'd Love Your Feedback!</h1>
+    </div>
+    
+    <div class="content">
+        <p>Dear {{ customer_name }},</p>
+        
+        <p>Thank you for choosing <strong>{{ business.name }}</strong>! We hope you had a great experience with us.</p>
+        
+        <div class="business-info">
+            <h3>{{ business.name }}</h3>
+            {% if business.address %}
+                <p><strong>Address:</strong> {{ business.address }}</p>
+            {% endif %}
+            {% if business.phone %}
+                <p><strong>Phone:</strong> {{ business.phone }}</p>
+            {% endif %}
+            {% if business.website %}
+                <p><strong>Website:</strong> <a href="{{ business.website }}">{{ business.website }}</a></p>
+            {% endif %}
+        </div>
+        
+        <p>Your feedback is incredibly valuable to us and helps us improve our products and services. Would you mind taking a few minutes to share your experience?</p>
+        
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="{{ review_link }}" class="button">Share Your Experience</a>
+        </div>
+        
+        <p><strong>What you can expect:</strong></p>
+        <ul>
+            <li>Quick and easy review form (takes less than 2 minutes)</li>
+            <li>Your feedback helps us serve you better</li>
+            <li>Positive reviews are published immediately</li>
+            <li>For any concerns, we'll have 7 days to respond before publication</li>
+        </ul>
+        
+        <p>If you have any immediate concerns or questions, please feel free to contact us directly at {{ business.email|default:business.owner.email }}.</p>
+        
+        <p>Thank you for your time and for being a valued customer!</p>
+        
+        <p>Best regards,<br>
+        The {{ business.name }} Team</p>
+    </div>
+    
+    <div class="footer">
+        <p>This email was sent by {{ site_name }}.</p>
+        <p>If you believe you received this email in error, please ignore it.</p>
+        <p>This review request expires in 7 days.</p>
+    </div>
+</body>
+</html>

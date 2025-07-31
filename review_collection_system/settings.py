@@ -249,3 +249,40 @@ PAYPAL_API_BASE = config('PAYPAL_API_BASE', default='https://api-m.sandbox.paypa
 
 # Frontend URL for review links and redirects
 FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3000')
+
+# ===== CELERY CONFIGURATION =====
+# Celery Configuration for async task processing
+CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default='redis://localhost:6379/0')
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_ENABLE_UTC = True
+
+# Celery Beat Schedule for periodic tasks
+CELERY_BEAT_SCHEDULE = {
+    'check-pending-reviews-for-auto-publish': {
+        'task': 'reviews.tasks.check_pending_reviews_for_auto_publish',
+        'schedule': 3600.0,  # Run every hour
+    },
+    'cleanup-expired-review-requests': {
+        'task': 'reviews.tasks.cleanup_expired_review_requests',
+        'schedule': 86400.0,  # Run daily
+    },
+}
+
+# ===== SENDGRID CONFIGURATION =====
+# SendGrid API Configuration for email sending
+SENDGRID_API_KEY = config('SENDGRID_API_KEY', default='')
+SENDGRID_FROM_EMAIL = config('SENDGRID_FROM_EMAIL', default='noreply@yourdomain.com')
+SENDGRID_FROM_NAME = config('SENDGRID_FROM_NAME', default='Review Collection System')
+
+# Site configuration for email templates
+SITE_NAME = config('SITE_NAME', default='Review Collection System')
+SITE_URL = config('SITE_URL', default='http://localhost:8000')
+
+# Update Django Celery Beat
+INSTALLED_APPS += [
+    'django_celery_beat',
+]

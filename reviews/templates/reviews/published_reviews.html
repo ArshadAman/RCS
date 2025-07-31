@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reviews - {{ business.name }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 20px;
+        }
+        .business-info {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .stat-item {
+            flex: 1;
+        }
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #007bff;
+        }
+        .stat-label {
+            color: #666;
+            margin-top: 5px;
+        }
+        .filters {
+            margin: 20px 0;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .review-card {
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            background: white;
+            position: relative;
+        }
+        .review-card.positive {
+            border-left: 4px solid #28a745;
+        }
+        .review-card.negative {
+            border-left: 4px solid #dc3545;
+        }
+        .review-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .reviewer-info {
+            flex: 1;
+        }
+        .reviewer-name {
+            font-weight: bold;
+            color: #333;
+        }
+        .review-date {
+            color: #666;
+            font-size: 14px;
+        }
+        .overall-rating {
+            font-size: 24px;
+            color: #ffd700;
+            margin-left: 20px;
+        }
+        .ratings-detail {
+            display: flex;
+            gap: 20px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+        .rating-item {
+            background: #f8f9fa;
+            padding: 8px 12px;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .rating-label {
+            color: #666;
+            margin-right: 5px;
+        }
+        .rating-stars {
+            color: #ffd700;
+        }
+        .review-content {
+            margin: 15px 0;
+        }
+        .positive-comment {
+            background: #f8fff8;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 3px solid #28a745;
+            margin-bottom: 10px;
+        }
+        .negative-comment {
+            background: #fff8f8;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 3px solid #dc3545;
+            margin-bottom: 10px;
+        }
+        .store-response {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 3px solid #007bff;
+            margin-top: 15px;
+        }
+        .response-header {
+            font-weight: bold;
+            color: #007bff;
+            margin-bottom: 10px;
+        }
+        .recommendation-badge {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .recommendation-badge.positive {
+            background: #d4edda;
+            color: #155724;
+        }
+        .recommendation-badge.negative {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .order-info {
+            background: #e9ecef;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 15px;
+        }
+        .pagination {
+            display: flex;
+            justify-content: center;
+            margin-top: 30px;
+            gap: 10px;
+        }
+        .pagination a, .pagination span {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            text-decoration: none;
+            color: #007bff;
+        }
+        .pagination .current {
+            background: #007bff;
+            color: white;
+        }
+        .no-reviews {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        .filter-select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Customer Reviews</h1>
+            <h2>{{ business.name }}</h2>
+        </div>
+
+        <div class="business-info">
+            <div class="stats">
+                <div class="stat-item">
+                    <div class="stat-number">{{ total_reviews }}</div>
+                    <div class="stat-label">Total Reviews</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">{{ average_rating|floatformat:1 }}★</div>
+                    <div class="stat-label">Average Rating</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">{{ business.recommendation_percentage }}%</div>
+                    <div class="stat-label">Recommendation Rate</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="filters">
+            <div class="filter-group">
+                <label for="rating_filter">Filter by Rating:</label>
+                <select id="rating_filter" class="filter-select" onchange="filterReviews()">
+                    <option value="">All Ratings</option>
+                    <option value="5">5 Stars</option>
+                    <option value="4">4 Stars</option>
+                    <option value="3">3 Stars</option>
+                    <option value="2">2 Stars</option>
+                    <option value="1">1 Star</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="type_filter">Filter by Type:</label>
+                <select id="type_filter" class="filter-select" onchange="filterReviews()">
+                    <option value="">All Reviews</option>
+                    <option value="positive">Positive Reviews</option>
+                    <option value="negative">Negative Reviews</option>
+                    <option value="daily_sales">Daily Sales Reviews</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="sort_filter">Sort by:</label>
+                <select id="sort_filter" class="filter-select" onchange="filterReviews()">
+                    <option value="-created_at">Newest First</option>
+                    <option value="created_at">Oldest First</option>
+                    <option value="-overall_rating">Highest Rating</option>
+                    <option value="overall_rating">Lowest Rating</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="reviews-container">
+            {% if reviews %}
+                {% for review in reviews %}
+                <div class="review-card {{ review.display_color }}" data-rating="{{ review.overall_rating }}" data-type="{% if review.is_positive %}positive{% else %}negative{% endif %}{% if review.is_daily_sales_review %} daily_sales{% endif %}">
+                    <div class="recommendation-badge {{ review.display_color }}">
+                        {% if review.is_positive %}Recommended{% else %}Not Recommended{% endif %}
+                    </div>
+                    
+                    <div class="review-header">
+                        <div class="reviewer-info">
+                            <div class="reviewer-name">{{ review.reviewer_name }}</div>
+                            <div class="review-date">{{ review.created_at|date:"F d, Y" }}</div>
+                        </div>
+                        <div class="overall-rating">
+                            {% for i in "12345" %}
+                                {% if forloop.counter <= review.overall_rating %}★{% else %}☆{% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    {% if review.is_daily_sales_review %}
+                    <div class="order-info">
+                        <strong>Daily Sales Review</strong> - Order #{{ review.review_request.order_id }} from {{ review.review_request.order_date|date:"F d, Y" }}
+                    </div>
+                    {% endif %}
+
+                    <div class="ratings-detail">
+                        {% if review.logistics_rating %}
+                        <div class="rating-item">
+                            <span class="rating-label">Logistics:</span>
+                            <span class="rating-stars">
+                                {% for i in "12345" %}
+                                    {% if forloop.counter <= review.logistics_rating %}★{% else %}☆{% endif %}
+                                {% endfor %}
+                            </span>
+                        </div>
+                        {% endif %}
+                        
+                        {% if review.communication_rating %}
+                        <div class="rating-item">
+                            <span class="rating-label">Communication:</span>
+                            <span class="rating-stars">
+                                {% for i in "12345" %}
+                                    {% if forloop.counter <= review.communication_rating %}★{% else %}☆{% endif %}
+                                {% endfor %}
+                            </span>
+                        </div>
+                        {% endif %}
+                        
+                        {% if review.website_usability_rating %}
+                        <div class="rating-item">
+                            <span class="rating-label">Website:</span>
+                            <span class="rating-stars">
+                                {% for i in "12345" %}
+                                    {% if forloop.counter <= review.website_usability_rating %}★{% else %}☆{% endif %}
+                                {% endfor %}
+                            </span>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="review-content">
+                        {% if review.positive_comment %}
+                        <div class="positive-comment">
+                            <strong>What they liked:</strong><br>
+                            {{ review.positive_comment }}
+                        </div>
+                        {% endif %}
+                        
+                        {% if review.negative_comment %}
+                        <div class="negative-comment">
+                            <strong>Areas for improvement:</strong><br>
+                            {{ review.negative_comment }}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    {% if review.store_response %}
+                    <div class="store-response">
+                        <div class="response-header">Response from {{ business.name }}:</div>
+                        {{ review.store_response }}
+                        <div style="font-size: 12px; color: #666; margin-top: 10px;">
+                            Responded on {{ review.response_date|date:"F d, Y" }}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+
+                <!-- Pagination -->
+                {% if is_paginated %}
+                <div class="pagination">
+                    {% if page_obj.has_previous %}
+                        <a href="?page=1">&laquo; first</a>
+                        <a href="?page={{ page_obj.previous_page_number }}">previous</a>
+                    {% endif %}
+
+                    <span class="current">
+                        Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                    </span>
+
+                    {% if page_obj.has_next %}
+                        <a href="?page={{ page_obj.next_page_number }}">next</a>
+                        <a href="?page={{ page_obj.paginator.num_pages }}">last &raquo;</a>
+                    {% endif %}
+                </div>
+                {% endif %}
+            {% else %}
+                <div class="no-reviews">
+                    <h3>No reviews yet</h3>
+                    <p>Be the first to share your experience with {{ business.name }}!</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        function filterReviews() {
+            const ratingFilter = document.getElementById('rating_filter').value;
+            const typeFilter = document.getElementById('type_filter').value;
+            const sortFilter = document.getElementById('sort_filter').value;
+            
+            // Build URL with filters
+            const params = new URLSearchParams(window.location.search);
+            
+            if (ratingFilter) {
+                params.set('rating', ratingFilter);
+            } else {
+                params.delete('rating');
+            }
+            
+            if (typeFilter) {
+                params.set('type', typeFilter);
+            } else {
+                params.delete('type');
+            }
+            
+            if (sortFilter) {
+                params.set('sort', sortFilter);
+            } else {
+                params.delete('sort');
+            }
+            
+            // Redirect with new filters
+            window.location.search = params.toString();
+        }
+
+        // Set filter values from URL on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const params = new URLSearchParams(window.location.search);
+            
+            const ratingFilter = params.get('rating');
+            if (ratingFilter) {
+                document.getElementById('rating_filter').value = ratingFilter;
+            }
+            
+            const typeFilter = params.get('type');
+            if (typeFilter) {
+                document.getElementById('type_filter').value = typeFilter;
+            }
+            
+            const sortFilter = params.get('sort');
+            if (sortFilter) {
+                document.getElementById('sort_filter').value = sortFilter;
+            }
+        });
+    </script>
+</body>
+</html>

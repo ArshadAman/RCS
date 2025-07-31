@@ -112,7 +112,7 @@ class Business(models.Model):
     def recommendation_percentage(self):
         reviews = self.reviews.filter(status='published')
         if reviews.exists():
-            recommended_count = reviews.filter(would_recommend=True).count()
+            recommended_count = reviews.filter(overall_rating__gte=3).count()
             return round((recommended_count / reviews.count()) * 100, 1)
         return 0
 
@@ -173,6 +173,7 @@ class Review(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, related_name='reviews')
     reviewer_name = models.CharField(max_length=100, help_text="Public display name")
     reviewer_email = models.EmailField()
+    product_name = models.CharField(max_length=200, blank=True, help_text="Product or service name")
     
     # Main question: Would you recommend this store?
     would_recommend = models.BooleanField()
@@ -209,6 +210,7 @@ class Review(models.Model):
     # Auto-publish tracking (for negative reviews from daily sales)
     auto_publish_date = models.DateTimeField(blank=True, null=True)
     is_auto_published = models.BooleanField(default=False)
+    auto_published_at = models.DateTimeField(blank=True, null=True)
     
     # Moderation
     moderation_notes = models.TextField(blank=True)
@@ -229,56 +231,41 @@ class Review(models.Model):
         ]
     
     def __str__(self):
-        recommend_text = "YES" if self.would_recommend else "NO"
+        recommend_text = "YES" if self.overall_rating >= 3 else "NO"
         if self.review_request:
             return f"{self.review_request.order_id} - {recommend_text} ({self.overall_rating}★)"
         return f"{self.overall_rating}★ - {self.business.name} by {self.reviewer_name}"
     
     def save(self, *args, **kwargs):
-        # Calculate overall rating based on recommendation and sub-ratings
-        if self.would_recommend:
-            # Positive feedback: 5 stars or average of sub-ratings
-            if self.logistics_rating or self.communication_rating or self.website_usability_rating:
-                ratings = []
-                if self.logistics_rating:
-                    ratings.append(self.logistics_rating)
-                if self.communication_rating:
-                    ratings.append(self.communication_rating)
-                if self.website_usability_rating:
-                    ratings.append(self.website_usability_rating)
-                
-                if ratings:
-                    self.overall_rating = round(sum(ratings) / len(ratings))
-                else:
-                    self.overall_rating = 5
-            else:
-                self.overall_rating = 5
+        # Calculate overall rating first based on sub-ratings
+        if self.logistics_rating or self.communication_rating or self.website_usability_rating:
+            ratings = []
+            if self.logistics_rating:
+                ratings.append(self.logistics_rating)
+            if self.communication_rating:
+                ratings.append(self.communication_rating)
+            if self.website_usability_rating:
+                ratings.append(self.website_usability_rating)
             
-            # Positive feedback gets published immediately
+            if ratings:
+                self.overall_rating = round(sum(ratings) / len(ratings))
+            else:
+                # Fallback to would_recommend if no sub-ratings provided
+                self.overall_rating = 5 if self.would_recommend else 2
+        else:
+            # Fallback to would_recommend if no sub-ratings provided
+            self.overall_rating = 5 if self.would_recommend else 2
+        
+        # Determine if this is positive or negative feedback based on rating
+        if self.overall_rating >= 3:
+            # Positive feedback (rating 3, 4, or 5) gets published immediately
             if self.status == 'pending_moderation':
                 self.status = 'published'
         else:
-            # Negative feedback: Must have detailed comment for daily sales reviews
+            # Negative feedback (rating 1 or 2): Must have detailed comment for daily sales reviews
             if self.review_request and (not self.negative_comment or len(self.negative_comment.strip()) < 50):
                 from django.core.exceptions import ValidationError
                 raise ValidationError("Negative feedback must include a detailed comment (minimum 50 characters)")
-            
-            # Calculate based on sub-ratings or default to 2 for negative feedback
-            if self.logistics_rating or self.communication_rating or self.website_usability_rating:
-                ratings = []
-                if self.logistics_rating:
-                    ratings.append(self.logistics_rating)
-                if self.communication_rating:
-                    ratings.append(self.communication_rating)
-                if self.website_usability_rating:
-                    ratings.append(self.website_usability_rating)
-                
-                if ratings:
-                    self.overall_rating = round(sum(ratings) / len(ratings))
-                else:
-                    self.overall_rating = 2
-            else:
-                self.overall_rating = 2
             
             # Set auto-publish date for negative feedback from daily sales (7 days from creation)
             if self.review_request and not self.auto_publish_date:
@@ -289,7 +276,7 @@ class Review(models.Model):
             self.response_date = timezone.now()
         
         # Check if owner responded to negative feedback within 7 days - publish it
-        if (not self.would_recommend and 
+        if (self.overall_rating < 3 and 
             self.store_response and 
             self.status == 'pending_moderation' and
             self.auto_publish_date and 
@@ -297,7 +284,7 @@ class Review(models.Model):
             self.status = 'published'  # Publish with response
         
         # Auto-publish negative feedback after 7 days (without response)
-        elif (not self.would_recommend and 
+        elif (self.overall_rating < 3 and 
               self.status == 'pending_moderation' and 
               self.auto_publish_date and 
               timezone.now() >= self.auto_publish_date and 
@@ -309,22 +296,32 @@ class Review(models.Model):
     
     @property
     def is_positive(self):
-        return self.would_recommend
+        return self.overall_rating >= 3
     
     @property
     def should_auto_publish(self):
-        if self.would_recommend:
+        if self.overall_rating >= 3:
             return False
         return timezone.now() >= self.auto_publish_date if self.auto_publish_date else False
     
     @property
     def display_color(self):
-        return 'green' if self.would_recommend else 'red'
+        return 'green' if self.overall_rating >= 3 else 'red'
     
     @property
     def is_daily_sales_review(self):
         """Check if this review came from daily sales report"""
         return self.review_request is not None
+    
+    @property
+    def business_response(self):
+        """Alias for store_response for template compatibility"""
+        return self.store_response
+    
+    @property
+    def auto_published(self):
+        """Alias for is_auto_published for template compatibility"""
+        return self.is_auto_published
 
 
 class ReviewCriteriaRating(models.Model):

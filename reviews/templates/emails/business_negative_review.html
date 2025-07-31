@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Review Requires Your Attention</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #dc3545;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 8px 8px 0 0;
+        }
+        .content {
+            background-color: #f9f9f9;
+            padding: 30px;
+            border-radius: 0 0 8px 8px;
+        }
+        .review-preview {
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border-left: 4px solid #dc3545;
+        }
+        .stars {
+            color: #ffd700;
+            font-size: 18px;
+            margin: 10px 0;
+        }
+        .warning-box {
+            background-color: #fff3cd;
+            color: #856404;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border: 1px solid #faeeba;
+        }
+        .button {
+            display: inline-block;
+            background-color: #dc3545;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 20px 5px;
+            font-weight: bold;
+        }
+        .button.secondary {
+            background-color: #6c757d;
+        }
+        .footer {
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>⚠️ New Review Requires Attention</h1>
+    </div>
+    
+    <div class="content">
+        <p>Dear {{ business.owner.first_name|default:"Business Owner" }},</p>
+        
+        <p>You have received a new review for <strong>{{ business.name }}</strong> that requires your attention.</p>
+        
+        <div class="review-preview">
+            <h3>Customer Review:</h3>
+            <div class="stars">
+                {% for i in "12345" %}
+                    {% if forloop.counter <= review.overall_rating %}⭐{% else %}☆{% endif %}
+                {% endfor %}
+                ({{ review.overall_rating }}/5)
+            </div>
+            <p><strong>Customer:</strong> {{ review.reviewer_name }}</p>
+            <p><strong>Email:</strong> {{ review.reviewer_email }}</p>
+            {% if review.product_name %}
+                <p><strong>Product/Service:</strong> {{ review.product_name }}</p>
+            {% endif %}
+            <p><strong>Review:</strong></p>
+            <p><em>"{{ review.comment }}"</em></p>
+            <p><small>Submitted on {{ review.created_at|date:"M d, Y \a\t g:i A" }}</small></p>
+        </div>
+        
+        <div class="warning-box">
+            <h4>⏰ Important: 7-Day Response Window</h4>
+            <p><strong>You have 7 days to respond to this review before it's automatically published.</strong></p>
+            <p><strong>Auto-publish date:</strong> {{ review.auto_publish_date|date:"M d, Y \a\t g:i A" }}</p>
+            <p>Time remaining: <strong>7 days</strong></p>
+        </div>
+        
+        <p><strong>What you can do:</strong></p>
+        <ul>
+            <li>📞 <strong>Contact the customer directly</strong> to address their concerns</li>
+            <li>💬 <strong>Provide a public response</strong> that will be displayed with the review</li>
+            <li>🔧 <strong>Take corrective action</strong> to improve your service</li>
+            <li>🤝 <strong>Turn this into a positive experience</strong> by showing excellent customer service</li>
+        </ul>
+        
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="{{ site_url }}/reviews/respond/{{ review.id }}/" class="button">Respond to Review</a>
+            <a href="{{ site_url }}/dashboard/" class="button secondary">View Dashboard</a>
+        </div>
+        
+        <p><strong>Remember:</strong></p>
+        <ul>
+            <li>Professional responses can turn negative reviews into positive experiences</li>
+            <li>Public responses show future customers how you handle concerns</li>
+            <li>Quick action demonstrates your commitment to customer satisfaction</li>
+            <li>If no response is provided, the review will be published automatically</li>
+        </ul>
+        
+        <p>If you need assistance with crafting a response, our support team is here to help.</p>
+        
+        <p>Best regards,<br>
+        {{ site_name }} Team</p>
+    </div>
+    
+    <div class="footer">
+        <p>This email was sent by {{ site_name }}.</p>
+        <p>Customer email: {{ review.reviewer_email }}</p>
+        <p>Review ID: {{ review.id }}</p>
+    </div>
+</body>
+</html>

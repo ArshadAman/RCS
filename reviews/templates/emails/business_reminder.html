@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reminder: Review Awaiting Response</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #fd7e14;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 8px 8px 0 0;
+        }
+        .content {
+            background-color: #f9f9f9;
+            padding: 30px;
+            border-radius: 0 0 8px 8px;
+        }
+        .review-preview {
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border-left: 4px solid #fd7e14;
+        }
+        .stars {
+            color: #ffd700;
+            font-size: 18px;
+            margin: 10px 0;
+        }
+        .urgency-box {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border: 1px solid #f5c6cb;
+        }
+        .button {
+            display: inline-block;
+            background-color: #fd7e14;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 20px 5px;
+            font-weight: bold;
+        }
+        .footer {
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>⏰ Reminder: {{ days_remaining }} Days Left to Respond</h1>
+    </div>
+    
+    <div class="content">
+        <p>Dear {{ business.owner.first_name|default:"Business Owner" }},</p>
+        
+        <p>This is a friendly reminder that you have a pending review for <strong>{{ business.name }}</strong> that requires your attention.</p>
+        
+        <div class="review-preview">
+            <h3>Customer Review:</h3>
+            <div class="stars">
+                {% for i in "12345" %}
+                    {% if forloop.counter <= review.overall_rating %}⭐{% else %}☆{% endif %}
+                {% endfor %}
+                ({{ review.overall_rating }}/5)
+            </div>
+            <p><strong>Customer:</strong> {{ review.reviewer_name }}</p>
+            <p><strong>Email:</strong> {{ review.reviewer_email }}</p>
+            {% if review.product_name %}
+                <p><strong>Product/Service:</strong> {{ review.product_name }}</p>
+            {% endif %}
+            <p><strong>Review:</strong></p>
+            <p><em>"{{ review.comment }}"</em></p>
+            <p><small>Submitted on {{ review.created_at|date:"M d, Y \a\t g:i A" }}</small></p>
+        </div>
+        
+        <div class="urgency-box">
+            <h4>⚠️ Action Required</h4>
+            <p><strong>Time remaining: {{ days_remaining }} day{{ days_remaining|pluralize }}</strong></p>
+            <p><strong>Auto-publish date:</strong> {{ review.auto_publish_date|date:"M d, Y \a\t g:i A" }}</p>
+            <p>If no response is provided by this date, the review will be automatically published.</p>
+        </div>
+        
+        <p><strong>Recommended Actions:</strong></p>
+        <ul>
+            <li>📞 <strong>Contact the customer immediately</strong> to understand and address their concerns</li>
+            <li>💬 <strong>Prepare a professional public response</strong> for the review</li>
+            <li>🔧 <strong>Implement improvements</strong> based on the feedback</li>
+            <li>🤝 <strong>Turn this negative experience into a positive outcome</strong></li>
+        </ul>
+        
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="{{ site_url }}/reviews/respond/{{ review.id }}/" class="button">Respond Now</a>
+            <a href="mailto:{{ review.reviewer_email }}" class="button" style="background-color: #6c757d;">Contact Customer</a>
+        </div>
+        
+        <p><strong>Tips for Effective Responses:</strong></p>
+        <ul>
+            <li>Acknowledge the customer's concerns sincerely</li>
+            <li>Apologize for any inconvenience caused</li>
+            <li>Explain steps you're taking to address the issue</li>
+            <li>Invite further discussion offline if needed</li>
+            <li>Show that you value customer feedback</li>
+        </ul>
+        
+        {% if days_remaining <= 1 %}
+            <div style="background-color: #dc3545; color: white; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: center;">
+                <h3>🚨 URGENT: Final Reminder</h3>
+                <p>This is your last chance to respond before auto-publication!</p>
+            </div>
+        {% endif %}
+        
+        <p>Remember, a thoughtful response can demonstrate your commitment to customer satisfaction and may even lead to the customer updating their review.</p>
+        
+        <p>If you need assistance crafting a response, please don't hesitate to contact our support team.</p>
+        
+        <p>Best regards,<br>
+        {{ site_name }} Team</p>
+    </div>
+    
+    <div class="footer">
+        <p>This email was sent by {{ site_name }}.</p>
+        <p>Customer email: {{ review.reviewer_email }}</p>
+        <p>Review ID: {{ review.id }}</p>
+        <p>Days remaining: {{ days_remaining }}</p>
+    </div>
+</body>
+</html>

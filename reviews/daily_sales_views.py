@@ -351,7 +351,10 @@ def submit_feedback(request, token):
             overall_rating=serializer.validated_data.get('overall_rating', 5),
             ip_address=get_client_ip(request),
             user_agent=request.META.get('HTTP_USER_AGENT', ''),
-            status='published' if serializer.validated_data['would_recommend'] else 'pending_moderation'
+            # NEW: Status logic based on rating (>=3 = positive, <3 = negative)
+            status='published' if serializer.validated_data.get('overall_rating', 5) >= 3 else 'pending_moderation',
+            # NEW: Auto-publish date for negative reviews (7 days from now)
+            auto_publish_date=timezone.now() + timedelta(days=7) if serializer.validated_data.get('overall_rating', 5) < 3 else None
         )
         
         # Update feedback request
@@ -359,15 +362,37 @@ def submit_feedback(request, token):
         feedback_request.responded_at = timezone.now()
         feedback_request.save()
         
-        # If negative review, notify moderation team
-        if not review.would_recommend:
-            notify_moderation_team(review)
+        # NEW: Send email notifications using SendGrid
+        from .email_utils import send_review_notification_email
+        from .tasks import schedule_auto_publish_review, schedule_review_reminders
+        
+        if review.overall_rating >= 3:
+            # Positive review - thank the customer
+            send_review_notification_email(
+                review, 
+                email_type='customer_thank_you'
+            )
+        else:
+            # Negative review - notify business owner and schedule auto-publish
+            send_review_notification_email(
+                review, 
+                email_type='business_negative_review'
+            )
+            
+            # Schedule auto-publish task
+            schedule_auto_publish_review.apply_async(
+                args=[review.id],
+                eta=review.auto_publish_date
+            )
+            
+            # Schedule reminder emails
+            schedule_review_reminders.delay(review.id)
         
         review_data = ReviewSerializer(review).data
         
         return Response({
-            'message': 'Thank you for your review!' if review.would_recommend 
-                      else 'Thank you for your review. We will review it and get back to you.',
+            'message': 'Thank you for your positive review! It has been published.' if review.overall_rating >= 3 
+                      else 'Thank you for your feedback. We have forwarded your concerns to our team. They will have 7 days to respond before your review is automatically published.',
             'review': review_data
         })
 
@@ -580,69 +605,29 @@ def dashboard_stats(request):
 
 # Helper functions
 def send_review_email(review_request):
-    """Send review request email to customer"""
-    
-    subject = f"How was your experience with {review_request.business.name}?"
-    
-    message = f"""
-    Dear {review_request.customer_name},
-
-    Thank you for your recent order ({review_request.order_id}) with {review_request.business.name}.
-
-    We would love to hear about your experience! Please take a moment to share your review:
-
-    {review_request.review_url}
-
-    Your review helps us improve our service and helps other customers make informed decisions.
-
-    This link will expire in 7 days.
-
-    Best regards,
-    {review_request.business.name} Team
-    """
+    """Send review request email to customer using SendGrid"""
+    from .email_utils import send_review_request_email
     
     try:
-        send_mail(
-            subject,
-            message,
-            settings.DEFAULT_FROM_EMAIL,
-            [review_request.customer_email],
-            fail_silently=False,
-        )
-        return True
+        return send_review_request_email(review_request)
     except Exception as e:
         print(f"Email sending failed: {e}")
         return False
 
 
 def notify_moderation_team(review):
-    """Notify moderation team about negative review"""
-    
-    subject = f"Negative Review Alert - {review.business.name}"
-    
-    message = f"""
-    A negative review has been received for {review.business.name}.
-
-    Order ID: {review.review_request.order_id}
-    Customer: {review.review_request.customer_name}
-    Rating: {review.overall_rating}/5
-    Comment: {review.negative_comment}
-
-    This review will auto-publish in 7 days if no action is taken.
-
-    Please review in the admin panel.
-    """
+    """Notify moderation team about negative review using SendGrid"""
+    from .email_utils import send_review_notification_email
     
     try:
-        send_mail(
-            subject,
-            message,
-            settings.DEFAULT_FROM_EMAIL,
-            [settings.DEFAULT_FROM_EMAIL],  # Send to admin
-            fail_silently=True,
+        # Send notification to business owner
+        return send_review_notification_email(
+            review, 
+            email_type='business_negative_review'
         )
-    except Exception:
-        pass  # Silent fail for notifications
+    except Exception as e:
+        print(f"Moderation notification failed: {e}")
+        return False
 
 
 def get_client_ip(request):

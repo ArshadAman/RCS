@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Review Has Been Published</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #007bff;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 8px 8px 0 0;
+        }
+        .content {
+            background-color: #f9f9f9;
+            padding: 30px;
+            border-radius: 0 0 8px 8px;
+        }
+        .review-preview {
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border-left: 4px solid #007bff;
+        }
+        .stars {
+            color: #ffd700;
+            font-size: 18px;
+            margin: 10px 0;
+        }
+        .footer {
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Your Review is Now Published! 📝</h1>
+    </div>
+    
+    <div class="content">
+        <p>Dear {{ review.reviewer_name }},</p>
+        
+        <p>We wanted to let you know that your review for <strong>{{ business.name }}</strong> has been published and is now visible to other customers.</p>
+        
+        <div class="review-preview">
+            <h3>Your Published Review:</h3>
+            <div class="stars">
+                {% for i in "12345" %}
+                    {% if forloop.counter <= review.overall_rating %}⭐{% else %}☆{% endif %}
+                {% endfor %}
+                ({{ review.overall_rating }}/5)
+            </div>
+            <p><em>"{{ review.comment }}"</em></p>
+            <p><strong>- {{ review.reviewer_name }}</strong></p>
+            {% if review.auto_published %}
+                <p><small><em>Published on {{ review.auto_published_at|date:"M d, Y" }}</em></small></p>
+            {% else %}
+                <p><small><em>Published on {{ review.created_at|date:"M d, Y" }}</em></small></p>
+            {% endif %}
+        </div>
+        
+        {% if review.auto_published %}
+            <p>Your review was automatically published after the 7-day response period. {% if business.owner_response %}The business has provided a response to address your concerns.{% else %}While the business didn't respond within the timeframe, your feedback is now public to help other customers make informed decisions.{% endif %}</p>
+        {% endif %}
+        
+        <p><strong>Thank you for sharing your experience!</strong> Your feedback:</p>
+        <ul>
+            <li>📢 Helps other customers make informed decisions</li>
+            <li>🔍 Provides valuable insights to the business</li>
+            <li>🌟 Contributes to maintaining service quality standards</li>
+            <li>💬 Encourages open and honest communication</li>
+        </ul>
+        
+        {% if review.business_response %}
+            <div class="review-preview">
+                <h3>Business Response:</h3>
+                <p><em>"{{ review.business_response }}"</em></p>
+                <p><strong>- {{ business.name }} Team</strong></p>
+            </div>
+        {% endif %}
+        
+        <p>Thank you for taking the time to share your experience. Your voice matters, and we appreciate your contribution to helping both the business and future customers.</p>
+        
+        <p>Best regards,<br>
+        {{ site_name }} Team</p>
+    </div>
+    
+    <div class="footer">
+        <p>This email was sent by {{ site_name }}.</p>
+        <p>{{ business.name }} - {{ business.address|default:"" }}</p>
+    </div>
+</body>
+</html>

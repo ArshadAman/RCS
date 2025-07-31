@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Review Submitted Successfully</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .success-container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .success-icon {
+            font-size: 64px;
+            color: #28a745;
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #28a745;
+            margin-bottom: 20px;
+        }
+        .review-summary {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            text-align: left;
+        }
+        .stars {
+            color: #ffd700;
+            font-size: 24px;
+            margin: 10px 0;
+            text-align: center;
+        }
+        .business-info {
+            background-color: #e9ecef;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .status-published {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .status-pending {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        .next-steps {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            text-align: left;
+        }
+        .button {
+            display: inline-block;
+            background-color: #007bff;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 10px;
+            font-weight: bold;
+        }
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            color: #666;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="success-container">
+        <div class="success-icon">✅</div>
+        
+        {% if review.overall_rating >= 3 %}
+            <h1>Thank You for Your Positive Review!</h1>
+            <p>Your review has been published immediately and is now visible to other customers.</p>
+        {% else %}
+            <h1>Thank You for Your Feedback!</h1>
+            <p>We appreciate you taking the time to share your experience with us.</p>
+        {% endif %}
+        
+        <div class="review-summary">
+            <h3>Your Review Summary:</h3>
+            
+            <div class="stars">
+                {% for i in "12345" %}
+                    {% if forloop.counter <= review.overall_rating %}⭐{% else %}☆{% endif %}
+                {% endfor %}
+            </div>
+            
+            <p><strong>Rating:</strong> {{ review.overall_rating }}/5 stars</p>
+            {% if review.product_name %}
+                <p><strong>Product/Service:</strong> {{ review.product_name }}</p>
+            {% endif %}
+            <p><strong>Your Review:</strong></p>
+            <p><em>"{{ review.comment }}"</em></p>
+            <p><strong>Submitted by:</strong> {{ review.reviewer_name }}</p>
+            <p><strong>Date:</strong> {{ review.created_at|date:"M d, Y \a\t g:i A" }}</p>
+        </div>
+        
+        <div class="business-info">
+            <h3>{{ business.name }}</h3>
+            {% if business.address %}
+                <p><strong>Address:</strong> {{ business.address }}</p>
+            {% endif %}
+            {% if business.phone %}
+                <p><strong>Phone:</strong> {{ business.phone }}</p>
+            {% endif %}
+            {% if business.website %}
+                <p><strong>Website:</strong> <a href="{{ business.website }}">{{ business.website }}</a></p>
+            {% endif %}
+        </div>
+        
+        {% if review.overall_rating >= 3 %}
+            <div class="status-badge status-published">✅ Published Immediately</div>
+            
+            <div class="next-steps">
+                <h4>What Happens Next:</h4>
+                <ul>
+                    <li>Your review is now live and visible to potential customers</li>
+                    <li>It contributes to the business's overall rating</li>
+                    <li>The business may respond to thank you for your feedback</li>
+                    <li>You'll receive a confirmation email shortly</li>
+                </ul>
+            </div>
+        {% else %}
+            <div class="status-badge status-pending">⏳ Under Review</div>
+            
+            <div class="next-steps">
+                <h4>What Happens Next:</h4>
+                <ul>
+                    <li>Your feedback has been forwarded to the business team</li>
+                    <li>They have 7 days to respond to your concerns</li>
+                    <li>If no response is provided, your review will be published automatically</li>
+                    <li>You'll receive email updates about the status</li>
+                    <li>The business may contact you directly to address your concerns</li>
+                </ul>
+                
+                <p><strong>Auto-publish date:</strong> {{ review.auto_publish_date|date:"M d, Y \a\t g:i A" }}</p>
+            </div>
+        {% endif %}
+        
+        <div style="margin: 30px 0;">
+            {% if business.website %}
+                <a href="{{ business.website }}" class="button">Visit {{ business.name }}</a>
+            {% endif %}
+            <a href="/reviews/published/{{ business.owner.id }}/" class="button" style="background-color: #28a745;">View All Reviews</a>
+        </div>
+        
+        <div class="footer">
+            <p>Thank you for using our review system!</p>
+            <p>If you have any questions or need assistance, please contact us.</p>
+            {% if review.overall_rating < 3 %}
+                <p><strong>Note:</strong> If you have immediate concerns that need urgent attention, 
+                please contact the business directly at {{ business.email|default:business.phone|default:"their listed contact information" }}.</p>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>
