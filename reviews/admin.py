@@ -61,7 +61,7 @@ class ReviewAdmin(admin.ModelAdmin):
             'fields': ('status',)
         }),
         ('Business Response', {
-            'fields': ('business_response', 'response_date'),
+            'fields': ('store_response', 'response_date'),
             'classes': ('collapse',)
         }),
         ('Timestamps', {

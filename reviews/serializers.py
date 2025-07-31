@@ -157,18 +157,6 @@ class PublicReviewSerializer(serializers.ModelSerializer):
         return review
 
 
-class ReviewResponseSerializer(serializers.ModelSerializer):
-    """Serializer for business response to review"""
-    
-    class Meta:
-        model = Review
-        fields = ('business_response',)
-    
-    def update(self, instance, validated_data):
-        instance.business_response = validated_data.get('business_response', instance.business_response)
-        instance.save()
-        return instance
-
 
 class ReviewLikeSerializer(serializers.ModelSerializer):
     """Serializer for Review Likes"""
@@ -380,9 +368,9 @@ class ReviewResponseSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Review
-        fields = ['business_response']
+        fields = ['store_response']
     
-    def validate_business_response(self, value):
+    def validate_store_response(self, value):
         if not value or len(value.strip()) < 10:
             raise serializers.ValidationError("Response must be at least 10 characters long")
         return value

@@ -542,7 +542,7 @@ def dashboard_stats(request):
         overall_rating__lt=4,
         status='pending',
         auto_publish_date__lte=timezone.now(),
-        business_response__exact=''  # No response from store
+        store_response__exact=''  # No response from store
     ).count()
     
     # Average rating

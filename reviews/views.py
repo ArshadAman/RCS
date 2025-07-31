@@ -664,7 +664,7 @@ def order_send_review_request_view(request, pk):
                         'reviewer_name': 'John Doe',
                         'reviewer_email': 'john@example.com',
                         'status': 'published',
-                        'business_response': None,
+                        'store_response': None,
                         'created_at': '2025-01-20T18:30:00Z',
                         'updated_at': '2025-01-20T18:30:00Z'
                     }
@@ -760,7 +760,7 @@ def review_list_create_view(request):
                 'reviewer_name': 'John Doe',
                 'reviewer_email': 'john.doe@example.com',
                 'status': 'approved',
-                'business_response': 'Thank you for your wonderful feedback!',
+                'store_response': 'Thank you for your wonderful feedback!',
                 'created_at': '2025-01-20T18:30:00Z',
                 'updated_at': '2025-01-20T19:15:00Z',
                 'business': {
@@ -775,7 +775,7 @@ def review_list_create_view(request):
             'Update Review Request',
             value={
                 'status': 'approved',
-                'business_response': 'Thank you for your feedback! We appreciate your business.'
+                'store_response': 'Thank you for your feedback! We appreciate your business.'
             },
             request_only=True
         )
@@ -1003,7 +1003,7 @@ def review_reject_view(request, pk):
                     'id': 45,
                     'overall_rating': 3,
                     'comment': 'Service could be better, but food was good.',
-                    'business_response': 'Thank you for your feedback! We are working to improve our service and appreciate your patience.',
+                    'store_response': 'Thank you for your feedback! We are working to improve our service and appreciate your patience.',
                     'reviewer_name': 'Jane Smith',
                     'status': 'approved',
                     'created_at': '2025-01-20T18:30:00Z',
@@ -1050,7 +1050,7 @@ def review_respond_view(request, pk):
             status=status.HTTP_400_BAD_REQUEST
         )
     
-    review.business_response = response_text
+    review.store_response = response_text
     review.response_date = timezone.now()
     review.responded_by = request.user
     review.save()
@@ -1310,7 +1310,7 @@ def review_criteria_detail_view(request, pk):
                         'comment': 'Amazing food and excellent service!',
                         'reviewer_name': 'John D.',
                         'created_at': '2025-01-20T18:30:00Z',
-                        'business_response': 'Thank you for your wonderful feedback!'
+                        'store_response': 'Thank you for your wonderful feedback!'
                     },
                     {
                         'id': 44,
