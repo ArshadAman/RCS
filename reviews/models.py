@@ -151,42 +151,69 @@ class Order(models.Model):
 
 
 class Review(models.Model):
-    """Model representing a customer review with customizable criteria"""
+    """Model representing a customer review with customizable criteria and daily sales integration"""
     
     STATUS_CHOICES = [
         ('draft', 'Draft'),
-        ('pending', 'Pending Approval'),
+        ('pending_moderation', 'Pending Moderation'),
         ('published', 'Published'),
+        ('disputed', 'Under Dispute'),
+        ('auto_published', 'Auto Published (7 days)'),
+        ('hidden', 'Hidden by Store'),
         ('appealed', 'Appealed'),
         ('archived', 'Archived'),
     ]
     
-    order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name='review')
+    RATING_CHOICES = [(i, str(i)) for i in range(1, 6)]
+    
+    # Can be linked to either Order (widget reviews) or ReviewRequest (daily sales reviews)
+    order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name='review', blank=True, null=True)
+    review_request = models.OneToOneField('ReviewRequest', on_delete=models.CASCADE, related_name='review', blank=True, null=True)
+    
     business = models.ForeignKey(Business, on_delete=models.CASCADE, related_name='reviews')
     reviewer_name = models.CharField(max_length=100, help_text="Public display name")
     reviewer_email = models.EmailField()
     
-    # Main question: Would you recommend?
+    # Main question: Would you recommend this store?
     would_recommend = models.BooleanField()
     
-    # Overall rating (calculated from criteria or default 5 if recommended without rating)
+    # If YES (positive feedback) - detailed ratings
+    logistics_rating = models.IntegerField(choices=RATING_CHOICES, blank=True, null=True, help_text="Shipping, delivery, packaging")
+    communication_rating = models.IntegerField(choices=RATING_CHOICES, blank=True, null=True, help_text="Customer service, responsiveness")
+    website_usability_rating = models.IntegerField(choices=RATING_CHOICES, blank=True, null=True, help_text="Website experience, ease of ordering")
+    positive_comment = models.TextField(blank=True, help_text="Additional positive feedback")
+    
+    # If NO (negative feedback)
+    negative_comment = models.TextField(blank=True, help_text="Detailed explanation for negative feedback")
+    
+    # Overall rating (calculated from criteria or default based on recommendation)
     overall_rating = models.IntegerField(
+        choices=RATING_CHOICES,
         validators=[MinValueValidator(1), MaxValueValidator(5)],
         default=5
     )
     
-    # Comment (required for negative feedback or low ratings)
-    comment = models.TextField(blank=True)
+    # General comment (for widget reviews or additional feedback)
+    comment = models.TextField(blank=True, help_text="General review comment")
     
     # Review status and moderation
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending_moderation')
     is_anonymous = models.BooleanField(default=False)
     is_verified = models.BooleanField(default=True)  # Email-based reviews are verified
     
-    # Business response
-    business_response = models.TextField(blank=True, help_text="Business response to review")
+    # Store response
+    store_response = models.TextField(blank=True, help_text="Store response to review")
     response_date = models.DateTimeField(blank=True, null=True)
     responded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='review_responses')
+    
+    # Auto-publish tracking (for negative reviews from daily sales)
+    auto_publish_date = models.DateTimeField(blank=True, null=True)
+    is_auto_published = models.BooleanField(default=False)
+    
+    # Moderation
+    moderation_notes = models.TextField(blank=True)
+    moderated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='moderated_reviews')
+    moderated_at = models.DateTimeField(blank=True, null=True)
     
     # Metadata
     ip_address = models.GenericIPAddressField(blank=True, null=True)
@@ -202,12 +229,102 @@ class Review(models.Model):
         ]
     
     def __str__(self):
+        recommend_text = "YES" if self.would_recommend else "NO"
+        if self.review_request:
+            return f"{self.review_request.order_id} - {recommend_text} ({self.overall_rating}★)"
         return f"{self.overall_rating}★ - {self.business.name} by {self.reviewer_name}"
     
     def save(self, *args, **kwargs):
-        if self.business_response and not self.response_date:
+        # Calculate overall rating based on recommendation and sub-ratings
+        if self.would_recommend:
+            # Positive feedback: 5 stars or average of sub-ratings
+            if self.logistics_rating or self.communication_rating or self.website_usability_rating:
+                ratings = []
+                if self.logistics_rating:
+                    ratings.append(self.logistics_rating)
+                if self.communication_rating:
+                    ratings.append(self.communication_rating)
+                if self.website_usability_rating:
+                    ratings.append(self.website_usability_rating)
+                
+                if ratings:
+                    self.overall_rating = round(sum(ratings) / len(ratings))
+                else:
+                    self.overall_rating = 5
+            else:
+                self.overall_rating = 5
+            
+            # Positive feedback gets published immediately
+            if self.status == 'pending_moderation':
+                self.status = 'published'
+        else:
+            # Negative feedback: Must have detailed comment for daily sales reviews
+            if self.review_request and (not self.negative_comment or len(self.negative_comment.strip()) < 50):
+                from django.core.exceptions import ValidationError
+                raise ValidationError("Negative feedback must include a detailed comment (minimum 50 characters)")
+            
+            # Calculate based on sub-ratings or default to 2 for negative feedback
+            if self.logistics_rating or self.communication_rating or self.website_usability_rating:
+                ratings = []
+                if self.logistics_rating:
+                    ratings.append(self.logistics_rating)
+                if self.communication_rating:
+                    ratings.append(self.communication_rating)
+                if self.website_usability_rating:
+                    ratings.append(self.website_usability_rating)
+                
+                if ratings:
+                    self.overall_rating = round(sum(ratings) / len(ratings))
+                else:
+                    self.overall_rating = 2
+            else:
+                self.overall_rating = 2
+            
+            # Set auto-publish date for negative feedback from daily sales (7 days from creation)
+            if self.review_request and not self.auto_publish_date:
+                self.auto_publish_date = timezone.now() + timezone.timedelta(days=7)
+        
+        # Handle store response timing
+        if self.store_response and not self.response_date:
             self.response_date = timezone.now()
+        
+        # Check if owner responded to negative feedback within 7 days - publish it
+        if (not self.would_recommend and 
+            self.store_response and 
+            self.status == 'pending_moderation' and
+            self.auto_publish_date and 
+            timezone.now() <= self.auto_publish_date):
+            self.status = 'published'  # Publish with response
+        
+        # Auto-publish negative feedback after 7 days (without response)
+        elif (not self.would_recommend and 
+              self.status == 'pending_moderation' and 
+              self.auto_publish_date and 
+              timezone.now() >= self.auto_publish_date and 
+              not self.store_response):
+            self.status = 'auto_published'
+            self.is_auto_published = True
+        
         super().save(*args, **kwargs)
+    
+    @property
+    def is_positive(self):
+        return self.would_recommend
+    
+    @property
+    def should_auto_publish(self):
+        if self.would_recommend:
+            return False
+        return timezone.now() >= self.auto_publish_date if self.auto_publish_date else False
+    
+    @property
+    def display_color(self):
+        return 'green' if self.would_recommend else 'red'
+    
+    @property
+    def is_daily_sales_review(self):
+        """Check if this review came from daily sales report"""
+        return self.review_request is not None
 
 
 class ReviewCriteriaRating(models.Model):
@@ -404,8 +521,8 @@ class DailySalesReport(models.Model):
         return f"{self.business.name} - {self.report_date} ({self.total_orders} orders)"
 
 
-class FeedbackRequest(models.Model):
-    """Tracks feedback requests sent to customers"""
+class ReviewRequest(models.Model):
+    """Tracks review requests sent to customers"""
     STATUS_CHOICES = [
         ('pending', 'Pending Response'),
         ('responded', 'Response Received'),
@@ -413,8 +530,8 @@ class FeedbackRequest(models.Model):
         ('invalid', 'Invalid Email/Customer'),
     ]
     
-    daily_report = models.ForeignKey(DailySalesReport, on_delete=models.CASCADE, related_name='feedback_requests')
-    business = models.ForeignKey(Business, on_delete=models.CASCADE, related_name='feedback_requests')
+    daily_report = models.ForeignKey(DailySalesReport, on_delete=models.CASCADE, related_name='review_requests')
+    business = models.ForeignKey(Business, on_delete=models.CASCADE, related_name='review_requests')
     order_id = models.CharField(max_length=100)
     customer_name = models.CharField(max_length=100)
     customer_email = models.EmailField()
@@ -445,155 +562,12 @@ class FeedbackRequest(models.Model):
         super().save(*args, **kwargs)
     
     @property
-    def feedback_url(self):
-        return f"https://yourdomain.com/feedback/{self.email_token}"
+    def review_url(self):
+        return f"https://yourdomain.com/review/{self.email_token}"
     
     @property
     def is_expired(self):
         return timezone.now() > self.expires_at
 
 
-class CustomerFeedback(models.Model):
-    """Customer feedback responses from daily sales reports"""
-    RATING_CHOICES = [(i, str(i)) for i in range(1, 6)]
-    
-    feedback_request = models.OneToOneField(FeedbackRequest, on_delete=models.CASCADE, related_name='feedback')
-    business = models.ForeignKey(Business, on_delete=models.CASCADE, related_name='customer_feedbacks')
-    
-    # Main question: Would you recommend this store?
-    would_recommend = models.BooleanField()
-    
-    # If YES (positive feedback)
-    logistics_rating = models.IntegerField(choices=RATING_CHOICES, blank=True, null=True)
-    communication_rating = models.IntegerField(choices=RATING_CHOICES, blank=True, null=True)
-    website_usability_rating = models.IntegerField(choices=RATING_CHOICES, blank=True, null=True)
-    positive_comment = models.TextField(blank=True)
-    
-    # If NO (negative feedback)
-    negative_comment = models.TextField(blank=True)
-    
-    # Computed overall rating
-    overall_rating = models.IntegerField(choices=RATING_CHOICES, default=5)
-    
-    # Review status and moderation
-    status = models.CharField(max_length=20, choices=[
-        ('draft', 'Draft'),
-        ('pending_moderation', 'Pending Moderation'),
-        ('published', 'Published'),
-        ('disputed', 'Under Dispute'),
-        ('auto_published', 'Auto Published (7 days)'),
-        ('hidden', 'Hidden by Store')
-    ], default='pending_moderation')
-    
-    # Store response
-    store_response = models.TextField(blank=True)
-    response_date = models.DateTimeField(blank=True, null=True)
-    responded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='feedback_responses')
-    
-    # Auto-publish tracking
-    auto_publish_date = models.DateTimeField(blank=True, null=True)
-    is_auto_published = models.BooleanField(default=False)
-    
-    # Moderation
-    moderation_notes = models.TextField(blank=True)
-    moderated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='moderated_feedbacks')
-    moderated_at = models.DateTimeField(blank=True, null=True)
-    
-    # Metadata
-    ip_address = models.GenericIPAddressField(blank=True, null=True)
-    user_agent = models.TextField(blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    class Meta:
-        ordering = ['-created_at']
-    
-    def __str__(self):
-        recommend_text = "YES" if self.would_recommend else "NO"
-        return f"{self.feedback_request.order_id} - {recommend_text} ({self.overall_rating}★)"
-    
-    def save(self, *args, **kwargs):
-        # Calculate overall rating
-        if self.would_recommend:
-            # Positive feedback: 5 stars or average of sub-ratings
-            if self.logistics_rating or self.communication_rating or self.website_usability_rating:
-                ratings = []
-                if self.logistics_rating:
-                    ratings.append(self.logistics_rating)
-                if self.communication_rating:
-                    ratings.append(self.communication_rating)
-                if self.website_usability_rating:
-                    ratings.append(self.website_usability_rating)
-                
-                if ratings:
-                    self.overall_rating = round(sum(ratings) / len(ratings))
-                else:
-                    self.overall_rating = 5
-            else:
-                self.overall_rating = 5
-            
-            # Positive feedback gets published immediately
-            if self.status == 'pending_moderation':
-                self.status = 'published'
-        else:
-            # Negative feedback: Must have detailed ratings and comment
-            if not self.negative_comment or len(self.negative_comment.strip()) < 50:
-                raise ValidationError("Negative feedback must include a detailed comment (minimum 50 characters)")
-            
-            # Calculate based on sub-ratings or default to 2 for negative feedback
-            if self.logistics_rating or self.communication_rating or self.website_usability_rating:
-                ratings = []
-                if self.logistics_rating:
-                    ratings.append(self.logistics_rating)
-                if self.communication_rating:
-                    ratings.append(self.communication_rating)
-                if self.website_usability_rating:
-                    ratings.append(self.website_usability_rating)
-                
-                if ratings:
-                    self.overall_rating = round(sum(ratings) / len(ratings))
-                else:
-                    self.overall_rating = 2
-            else:
-                self.overall_rating = 2
-            
-            # Set auto-publish date for negative feedback (7 days from creation)
-            if not self.auto_publish_date:
-                self.auto_publish_date = timezone.now() + timezone.timedelta(days=7)
-        
-        # Handle store response and publication logic for negative feedback
-        if self.store_response and not self.response_date:
-            self.response_date = timezone.now()
-        
-        # Check if owner responded to negative feedback within 7 days - publish it
-        if (not self.would_recommend and 
-            self.store_response and 
-            self.status == 'pending_moderation' and
-            self.auto_publish_date and 
-            timezone.now() <= self.auto_publish_date):
-            self.status = 'published'  # Publish with response
-        
-        # Auto-publish negative feedback after 7 days (without response)
-        elif (not self.would_recommend and 
-              self.status == 'pending_moderation' and 
-              self.auto_publish_date and 
-              timezone.now() >= self.auto_publish_date and 
-              not self.store_response):
-            self.status = 'auto_published'
-            self.is_auto_published = True
-        
-        super().save(*args, **kwargs)
-    
-    @property
-    def is_positive(self):
-        return self.would_recommend
-    
-    @property
-    def should_auto_publish(self):
-        if self.would_recommend:
-            return False
-        return timezone.now() >= self.auto_publish_date if self.auto_publish_date else False
-    
-    @property
-    def display_color(self):
-        return 'green' if self.would_recommend else 'red'
+

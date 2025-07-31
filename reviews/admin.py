@@ -2,7 +2,7 @@ from django.contrib import admin
 from .models import (
     Business, Review, ReviewImage, ReviewLike, Order, SurveyQuestion, 
     Plan, Badge, QRFeedback, ReviewAnswer, Payment, ReviewCriteria,
-    DailySalesReport, FeedbackRequest, CustomerFeedback
+    DailySalesReport, ReviewRequest
 )
 
 
@@ -194,12 +194,12 @@ class DailySalesReportAdmin(admin.ModelAdmin):
     )
 
 
-@admin.register(FeedbackRequest)
-class FeedbackRequestAdmin(admin.ModelAdmin):
+@admin.register(ReviewRequest)
+class ReviewRequestAdmin(admin.ModelAdmin):
     list_display = ('order_id', 'business', 'customer_name', 'customer_email', 'status', 'email_sent_at', 'expires_at')
     list_filter = ('status', 'business', 'email_sent_at', 'expires_at')
     search_fields = ('order_id', 'customer_name', 'customer_email', 'business__name')
-    readonly_fields = ('email_token', 'created_at', 'responded_at', 'feedback_url')
+    readonly_fields = ('email_token', 'created_at', 'responded_at', 'review_url')
     ordering = ('-created_at',)
     
     fieldsets = (
@@ -219,71 +219,4 @@ class FeedbackRequestAdmin(admin.ModelAdmin):
     )
 
 
-@admin.register(CustomerFeedback)
-class CustomerFeedbackAdmin(admin.ModelAdmin):
-    list_display = ('get_order_id', 'business', 'get_customer_name', 'would_recommend', 'overall_rating', 'status', 'display_color', 'created_at')
-    list_filter = ('would_recommend', 'status', 'overall_rating', 'business', 'is_auto_published', 'created_at')
-    search_fields = ('feedback_request__order_id', 'feedback_request__customer_name', 'feedback_request__customer_email', 'business__name')
-    readonly_fields = ('overall_rating', 'display_color', 'is_positive', 'should_auto_publish', 'created_at', 'updated_at', 'response_date', 'auto_publish_date')
-    ordering = ('-created_at',)
-    
-    fieldsets = (
-        ('Feedback Information', {
-            'fields': ('feedback_request', 'business', 'would_recommend', 'overall_rating', 'status')
-        }),
-        ('Positive Feedback', {
-            'fields': ('logistics_rating', 'communication_rating', 'website_usability_rating', 'positive_comment'),
-            'classes': ('collapse',)
-        }),
-        ('Negative Feedback', {
-            'fields': ('negative_comment',),
-            'classes': ('collapse',)
-        }),
-        ('Store Response', {
-            'fields': ('store_response', 'responded_by', 'response_date'),
-            'classes': ('collapse',)
-        }),
-        ('Auto-Publishing', {
-            'fields': ('auto_publish_date', 'is_auto_published'),
-            'classes': ('collapse',)
-        }),
-        ('Moderation', {
-            'fields': ('moderation_notes', 'moderated_by', 'moderated_at'),
-            'classes': ('collapse',)
-        }),
-        ('Display Properties', {
-            'fields': ('display_color', 'is_positive', 'should_auto_publish'),
-            'classes': ('collapse',)
-        }),
-        ('Metadata', {
-            'fields': ('ip_address', 'user_agent', 'created_at', 'updated_at'),
-            'classes': ('collapse',)
-        }),
-    )
-    
-    actions = ['approve_feedback', 'reject_feedback', 'mark_auto_published']
-    
-    def get_order_id(self, obj):
-        return obj.feedback_request.order_id
-    get_order_id.short_description = 'Order ID'
-    get_order_id.admin_order_field = 'feedback_request__order_id'
-    
-    def get_customer_name(self, obj):
-        return obj.feedback_request.customer_name
-    get_customer_name.short_description = 'Customer Name'
-    get_customer_name.admin_order_field = 'feedback_request__customer_name'
-    
-    def approve_feedback(self, request, queryset):
-        updated = queryset.update(status='published')
-        self.message_user(request, f'{updated} feedback approved and published.')
-    approve_feedback.short_description = "Approve and publish selected feedback"
-    
-    def reject_feedback(self, request, queryset):
-        updated = queryset.update(status='hidden')
-        self.message_user(request, f'{updated} feedback hidden.')
-    reject_feedback.short_description = "Hide selected feedback"
-    
-    def mark_auto_published(self, request, queryset):
-        updated = queryset.update(status='auto_published', is_auto_published=True)
-        self.message_user(request, f'{updated} feedback marked as auto-published.')
-    mark_auto_published.short_description = "Mark as auto-published"
+

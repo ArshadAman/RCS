@@ -4,7 +4,7 @@ from .models import (
     Business, Review, ReviewImage, ReviewLike, Category, Order, 
     SurveyQuestion, Plan, Badge, QRFeedback, ReviewAnswer, ReviewCriteria,
     ReviewCriteriaRating, EmailTemplate, WidgetSettings, Payment,
-    DailySalesReport, FeedbackRequest, CustomerFeedback
+    DailySalesReport, ReviewRequest
 )
 from authentication.serializers import UserProfileSerializer
 
@@ -326,15 +326,15 @@ class SalesReportUploadSerializer(serializers.Serializer):
         return value
 
 
-class FeedbackRequestSerializer(serializers.ModelSerializer):
-    """Serializer for Feedback Request"""
+class ReviewRequestSerializer(serializers.ModelSerializer):
+    """Serializer for Review Request"""
     
     business_name = serializers.CharField(source='business.name', read_only=True)
     days_remaining = serializers.SerializerMethodField()
     is_expired = serializers.ReadOnlyField()
     
     class Meta:
-        model = FeedbackRequest
+        model = ReviewRequest
         fields = [
             'id', 'business_name', 'order_id', 'customer_name', 'customer_email',
             'customer_phone', 'status', 'email_sent_at', 'responded_at',
@@ -350,87 +350,39 @@ class FeedbackRequestSerializer(serializers.ModelSerializer):
         return max(0, remaining.days)
 
 
-class CustomerFeedbackSerializer(serializers.ModelSerializer):
-    """Serializer for Customer Feedback"""
-    
-    business_name = serializers.CharField(source='business.name', read_only=True)
-    customer_name = serializers.CharField(source='feedback_request.customer_name', read_only=True)
-    customer_email = serializers.CharField(source='feedback_request.customer_email', read_only=True)
-    order_id = serializers.CharField(source='feedback_request.order_id', read_only=True)
-    display_color = serializers.ReadOnlyField()
-    is_positive = serializers.ReadOnlyField()
-    should_auto_publish = serializers.ReadOnlyField()
-    
-    class Meta:
-        model = CustomerFeedback
-        fields = [
-            'id', 'business_name', 'customer_name', 'customer_email', 'order_id',
-            'would_recommend', 'logistics_rating', 'communication_rating',
-            'website_usability_rating', 'positive_comment', 'negative_comment',
-            'overall_rating', 'status', 'store_response', 'response_date',
-            'auto_publish_date', 'is_auto_published', 'display_color',
-            'is_positive', 'should_auto_publish', 'moderation_notes',
-            'created_at', 'updated_at'
-        ]
-        read_only_fields = [
-            'id', 'overall_rating', 'auto_publish_date', 'response_date',
-            'business_name', 'customer_name', 'customer_email', 'order_id',
-            'display_color', 'is_positive', 'should_auto_publish',
-            'created_at', 'updated_at'
-        ]
-    
-    def validate(self, attrs):
-        """Validate feedback based on recommendation"""
-        would_recommend = attrs.get('would_recommend')
-        negative_comment = attrs.get('negative_comment', '')
-        
-        if not would_recommend:
-            # Negative feedback requires detailed comment
-            if not negative_comment or len(negative_comment.strip()) < 50:
-                raise serializers.ValidationError({
-                    'negative_comment': 'Negative feedback must include a detailed comment (minimum 50 characters)'
-                })
-        
-        return attrs
-
-
-class FeedbackSubmissionSerializer(serializers.Serializer):
-    """Serializer for customer feedback submission via email link"""
+class ReviewSubmissionSerializer(serializers.Serializer):
+    """Serializer for customer review submission via email link"""
     
     would_recommend = serializers.BooleanField()
-    
-    # Optional sub-ratings (for positive feedback)
-    logistics_rating = serializers.IntegerField(min_value=1, max_value=5, required=False)
-    communication_rating = serializers.IntegerField(min_value=1, max_value=5, required=False)
-    website_usability_rating = serializers.IntegerField(min_value=1, max_value=5, required=False)
+    overall_rating = serializers.IntegerField(min_value=1, max_value=5)
     
     # Comments
-    positive_comment = serializers.CharField(max_length=1000, required=False, allow_blank=True)
-    negative_comment = serializers.CharField(max_length=1000, required=False, allow_blank=True)
+    comment = serializers.CharField(max_length=1000, required=False, allow_blank=True)
     
     def validate(self, attrs):
-        """Validate feedback submission"""
+        """Validate review submission"""
         would_recommend = attrs.get('would_recommend')
-        negative_comment = attrs.get('negative_comment', '')
+        comment = attrs.get('comment', '')
+        overall_rating = attrs.get('overall_rating')
         
-        if not would_recommend:
+        if not would_recommend and overall_rating <= 3:
             # Negative feedback requires detailed comment
-            if not negative_comment or len(negative_comment.strip()) < 50:
+            if not comment or len(comment.strip()) < 50:
                 raise serializers.ValidationError({
-                    'negative_comment': 'For negative feedback, please provide a detailed comment (minimum 50 characters) to help us improve.'
+                    'comment': 'For negative reviews, please provide a detailed comment (minimum 50 characters) to help us improve.'
                 })
         
         return attrs
 
 
-class FeedbackResponseSerializer(serializers.ModelSerializer):
-    """Serializer for store response to feedback"""
+class ReviewResponseSerializer(serializers.ModelSerializer):
+    """Serializer for store response to review"""
     
     class Meta:
-        model = CustomerFeedback
-        fields = ['store_response']
+        model = Review
+        fields = ['business_response']
     
-    def validate_store_response(self, value):
+    def validate_business_response(self, value):
         if not value or len(value.strip()) < 10:
             raise serializers.ValidationError("Response must be at least 10 characters long")
         return value
@@ -439,15 +391,15 @@ class FeedbackResponseSerializer(serializers.ModelSerializer):
 class DashboardStatsSerializer(serializers.Serializer):
     """Serializer for dashboard statistics"""
     
-    total_feedback_requests = serializers.IntegerField()
+    total_review_requests = serializers.IntegerField()
     pending_responses = serializers.IntegerField()
-    positive_feedback = serializers.IntegerField()
-    negative_feedback = serializers.IntegerField()
+    positive_reviews = serializers.IntegerField()
+    negative_reviews = serializers.IntegerField()
     auto_publish_pending = serializers.IntegerField()
     average_rating = serializers.FloatField()
     response_rate = serializers.FloatField()
     
     # Recent activity
     recent_reports = DailySalesReportSerializer(many=True)
-    recent_feedback = CustomerFeedbackSerializer(many=True)
-    pending_moderation = CustomerFeedbackSerializer(many=True)
+    recent_reviews = ReviewSerializer(many=True)
+    pending_moderation = ReviewSerializer(many=True)

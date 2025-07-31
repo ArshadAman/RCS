@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from django.db import transaction
+from django.db import transaction, models
 from django.core.mail import send_mail
 from django.conf import settings
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
@@ -15,12 +15,12 @@ import json
 from datetime import timedelta
 
 from .models import (
-    Business, DailySalesReport, FeedbackRequest, CustomerFeedback
+    Business, DailySalesReport, ReviewRequest, Review
 )
 from .serializers import (
     DailySalesReportSerializer, SalesReportUploadSerializer,
-    FeedbackRequestSerializer, CustomerFeedbackSerializer,
-    FeedbackSubmissionSerializer, FeedbackResponseSerializer,
+    ReviewRequestSerializer, ReviewSerializer,
+    ReviewSubmissionSerializer, ReviewResponseSerializer,
     DashboardStatsSerializer
 )
 
@@ -167,8 +167,8 @@ def upload_sales_report(request):
         
         for order_data in orders:
             try:
-                # Create feedback request
-                feedback_request = FeedbackRequest.objects.create(
+                # Create review request
+                review_request = ReviewRequest.objects.create(
                     daily_report=sales_report,
                     business=business,
                     order_id=order_data['order_id'],
@@ -178,8 +178,8 @@ def upload_sales_report(request):
                     expires_at=timezone.now() + timedelta(days=7)
                 )
                 
-                # Send feedback email
-                if send_feedback_email(feedback_request):
+                # Send review email
+                if send_review_email(review_request):
                     emails_sent += 1
                 
                 processed_orders += 1
@@ -250,7 +250,7 @@ def get_sales_reports(request):
     - Review shown in red in dashboard
     - Auto-publish after 7 days if no action taken
     """,
-    request=FeedbackSubmissionSerializer,
+    request=ReviewSubmissionSerializer,
     responses={
         200: OpenApiExample(
             'Feedback Submitted Successfully',
@@ -313,11 +313,11 @@ def submit_feedback(request, token):
     
     # Get feedback request by token
     try:
-        feedback_request = FeedbackRequest.objects.get(
+        feedback_request = ReviewRequest.objects.get(
             email_token=token,
             status='pending'
         )
-    except FeedbackRequest.DoesNotExist:
+    except ReviewRequest.DoesNotExist:
         return Response(
             {'error': 'Feedback request not found or has expired'},
             status=status.HTTP_404_NOT_FOUND
@@ -332,21 +332,23 @@ def submit_feedback(request, token):
             status=status.HTTP_400_BAD_REQUEST
         )
     
-    # Validate feedback data
-    serializer = FeedbackSubmissionSerializer(data=request.data)
+    # Validate review data
+    serializer = ReviewSubmissionSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     
-    # Create customer feedback
+    # Create customer review
     with transaction.atomic():
-        feedback = CustomerFeedback.objects.create(
-            feedback_request=feedback_request,
+        review = Review.objects.create(
+            review_request=feedback_request,
             business=feedback_request.business,
+            reviewer_name=feedback_request.customer_name,
+            reviewer_email=feedback_request.customer_email,
             would_recommend=serializer.validated_data['would_recommend'],
-            logistics_rating=serializer.validated_data.get('logistics_rating'),
-            communication_rating=serializer.validated_data.get('communication_rating'),
-            website_usability_rating=serializer.validated_data.get('website_usability_rating'),
-            positive_comment=serializer.validated_data.get('positive_comment', ''),
-            negative_comment=serializer.validated_data.get('negative_comment', ''),
+            comment=serializer.validated_data.get('comment', ''),
+            # Map the comment to appropriate fields based on recommendation
+            negative_comment=serializer.validated_data.get('comment', '') if not serializer.validated_data['would_recommend'] else '',
+            positive_comment=serializer.validated_data.get('comment', '') if serializer.validated_data['would_recommend'] else '',
+            overall_rating=serializer.validated_data.get('overall_rating', 5),
             ip_address=get_client_ip(request),
             user_agent=request.META.get('HTTP_USER_AGENT', ''),
             status='published' if serializer.validated_data['would_recommend'] else 'pending_moderation'
@@ -357,16 +359,16 @@ def submit_feedback(request, token):
         feedback_request.responded_at = timezone.now()
         feedback_request.save()
         
-        # If negative feedback, notify moderation team
-        if not feedback.would_recommend:
-            notify_moderation_team(feedback)
+        # If negative review, notify moderation team
+        if not review.would_recommend:
+            notify_moderation_team(review)
         
-        feedback_data = CustomerFeedbackSerializer(feedback).data
+        review_data = ReviewSerializer(review).data
         
         return Response({
-            'message': 'Thank you for your feedback!' if feedback.would_recommend 
-                      else 'Thank you for your feedback. We will review it and get back to you.',
-            'feedback': feedback_data
+            'message': 'Thank you for your review!' if review.would_recommend 
+                      else 'Thank you for your review. We will review it and get back to you.',
+            'review': review_data
         })
 
 
@@ -378,7 +380,7 @@ def submit_feedback(request, token):
         OpenApiParameter('days', OpenApiTypes.INT, description='Filter by days (e.g., last 30 days)')
     ],
     responses={
-        200: FeedbackRequestSerializer(many=True)
+        200: ReviewRequestSerializer(many=True)
     },
     tags=['Customer Feedback']
 )
@@ -395,7 +397,7 @@ def get_feedback_requests(request):
             status=status.HTTP_404_NOT_FOUND
         )
     
-    feedback_requests = FeedbackRequest.objects.filter(business=business)
+    feedback_requests = ReviewRequest.objects.filter(business=business)
     
     # Filter by status
     status_filter = request.GET.get('status')
@@ -412,27 +414,27 @@ def get_feedback_requests(request):
         except ValueError:
             pass
     
-    serializer = FeedbackRequestSerializer(feedback_requests, many=True)
+    serializer = ReviewRequestSerializer(feedback_requests, many=True)
     return Response(serializer.data)
 
 
 @extend_schema(
-    summary="Get Customer Feedback",
-    description="Get all customer feedback for the authenticated user's business",
+    summary="Get Customer Reviews",
+    description="Get all customer reviews for the authenticated user's business",
     parameters=[
         OpenApiParameter('status', OpenApiTypes.STR, description='Filter by status'),
         OpenApiParameter('recommendation', OpenApiTypes.BOOL, description='Filter by recommendation (true/false)'),
-        OpenApiParameter('auto_publish_pending', OpenApiTypes.BOOL, description='Show feedback pending auto-publish')
+        OpenApiParameter('auto_publish_pending', OpenApiTypes.BOOL, description='Show reviews pending auto-publish')
     ],
     responses={
-        200: CustomerFeedbackSerializer(many=True)
+        200: ReviewSerializer(many=True)
     },
-    tags=['Customer Feedback']
+    tags=['Customer Reviews']
 )
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def get_customer_feedback(request):
-    """Get customer feedback for user's business"""
+def get_customer_reviews(request):
+    """Get customer reviews for user's business"""
     
     try:
         business = request.user.business
@@ -442,45 +444,46 @@ def get_customer_feedback(request):
             status=status.HTTP_404_NOT_FOUND
         )
     
-    feedback = CustomerFeedback.objects.filter(business=business)
+    # Get reviews from daily sales reports (those with review_request)
+    reviews = Review.objects.filter(business=business, review_request__isnull=False)
     
     # Filter by status
     status_filter = request.GET.get('status')
     if status_filter:
-        feedback = feedback.filter(status=status_filter)
+        reviews = reviews.filter(status=status_filter)
     
     # Filter by recommendation
     recommendation = request.GET.get('recommendation')
     if recommendation is not None:
         is_positive = recommendation.lower() == 'true'
-        feedback = feedback.filter(would_recommend=is_positive)
+        reviews = reviews.filter(would_recommend=is_positive)
     
     # Filter by auto-publish pending
     auto_publish_pending = request.GET.get('auto_publish_pending')
     if auto_publish_pending and auto_publish_pending.lower() == 'true':
-        feedback = feedback.filter(
+        reviews = reviews.filter(
             would_recommend=False,
             status='pending_moderation',
             auto_publish_date__lte=timezone.now()
         )
     
-    serializer = CustomerFeedbackSerializer(feedback, many=True)
+    serializer = ReviewSerializer(reviews, many=True)
     return Response(serializer.data)
 
 
 @extend_schema(
-    summary="Respond to Customer Feedback",
-    description="Store owner responds to customer feedback",
-    request=FeedbackResponseSerializer,
+    summary="Respond to Customer Review",
+    description="Store owner responds to customer review",
+    request=ReviewResponseSerializer,
     responses={
-        200: CustomerFeedbackSerializer
+        200: ReviewSerializer
     },
-    tags=['Customer Feedback']
+    tags=['Customer Reviews']
 )
 @api_view(['PATCH'])
 @permission_classes([IsAuthenticated])
-def respond_to_feedback(request, feedback_id):
-    """Store owner responds to customer feedback"""
+def respond_to_review(request, review_id):
+    """Store owner responds to customer review"""
     
     try:
         business = request.user.business
@@ -490,17 +493,17 @@ def respond_to_feedback(request, feedback_id):
             status=status.HTTP_404_NOT_FOUND
         )
     
-    feedback = get_object_or_404(CustomerFeedback, id=feedback_id, business=business)
+    review = get_object_or_404(Review, id=review_id, business=business, review_request__isnull=False)
     
-    serializer = FeedbackResponseSerializer(feedback, data=request.data, partial=True)
+    serializer = ReviewResponseSerializer(review, data=request.data, partial=True)
     serializer.is_valid(raise_exception=True)
     
-    feedback.store_response = serializer.validated_data['store_response']
-    feedback.responded_by = request.user
-    feedback.response_date = timezone.now()
-    feedback.save()
+    review.store_response = serializer.validated_data['store_response']
+    review.responded_by = request.user
+    review.response_date = timezone.now()
+    review.save()
     
-    response_serializer = CustomerFeedbackSerializer(feedback)
+    response_serializer = ReviewSerializer(review)
     return Response(response_serializer.data)
 
 
@@ -526,76 +529,76 @@ def dashboard_stats(request):
         )
     
     # Calculate statistics
-    feedback_requests = FeedbackRequest.objects.filter(business=business)
-    customer_feedback = CustomerFeedback.objects.filter(business=business)
+    review_requests = ReviewRequest.objects.filter(business=business)
+    reviews = Review.objects.filter(business=business)
     
-    total_feedback_requests = feedback_requests.count()
-    pending_responses = feedback_requests.filter(status='pending').count()
-    positive_feedback = customer_feedback.filter(would_recommend=True).count()
-    negative_feedback = customer_feedback.filter(would_recommend=False).count()
+    total_review_requests = review_requests.count()
+    pending_responses = review_requests.filter(status='pending').count()
+    positive_reviews = reviews.filter(overall_rating__gte=4).count()
+    negative_reviews = reviews.filter(overall_rating__lt=4).count()
     
-    # Auto-publish pending count (negative feedback with no response that's ready to auto-publish)
-    auto_publish_pending = customer_feedback.filter(
-        would_recommend=False,
-        status='pending_moderation',
+    # Auto-publish pending count (negative reviews with no response that's ready to auto-publish)
+    auto_publish_pending = reviews.filter(
+        overall_rating__lt=4,
+        status='pending',
         auto_publish_date__lte=timezone.now(),
-        store_response__exact=''  # No response from store
+        business_response__exact=''  # No response from store
     ).count()
     
     # Average rating
-    if customer_feedback.exists():
-        avg_rating = sum(f.overall_rating for f in customer_feedback) / customer_feedback.count()
+    if reviews.exists():
+        avg_rating = reviews.aggregate(avg_rating=models.Avg('overall_rating'))['avg_rating'] or 0
     else:
         avg_rating = 0
     
     # Response rate
     response_rate = 0
-    if total_feedback_requests > 0:
-        responded = feedback_requests.filter(status='responded').count()
-        response_rate = (responded / total_feedback_requests) * 100
+    if total_review_requests > 0:
+        responded = review_requests.filter(status='responded').count()
+        response_rate = (responded / total_review_requests) * 100
     
     # Recent data
     recent_reports = DailySalesReport.objects.filter(business=business)[:5]
-    recent_feedback = customer_feedback.order_by('-created_at')[:10]
-    pending_moderation = customer_feedback.filter(status='pending_moderation')[:5]
+    recent_reviews = reviews.order_by('-created_at')[:10]
+    pending_moderation = reviews.filter(status='pending')[:5]
     
     stats_data = {
-        'total_feedback_requests': total_feedback_requests,
+        'total_review_requests': total_review_requests,
         'pending_responses': pending_responses,
-        'positive_feedback': positive_feedback,
-        'negative_feedback': negative_feedback,
+        'positive_reviews': positive_reviews,
+        'negative_reviews': negative_reviews,
         'auto_publish_pending': auto_publish_pending,
         'average_rating': round(avg_rating, 1),
         'response_rate': round(response_rate, 1),
         'recent_reports': DailySalesReportSerializer(recent_reports, many=True).data,
-        'recent_feedback': CustomerFeedbackSerializer(recent_feedback, many=True).data,
-        'pending_moderation': CustomerFeedbackSerializer(pending_moderation, many=True).data
+        'recent_reviews': ReviewSerializer(recent_reviews, many=True).data,
+        'pending_moderation': ReviewSerializer(pending_moderation, many=True).data
     }
     
     return Response(stats_data)
 
 
 # Helper functions
-def send_feedback_email(feedback_request):
-    """Send feedback request email to customer"""
+def send_review_email(review_request):
+    """Send review request email to customer"""
     
-    subject = f"How was your experience with {feedback_request.business.name}?"
+    subject = f"How was your experience with {review_request.business.name}?"
     
     message = f"""
-    Dear {feedback_request.customer_name},
+    Dear {review_request.customer_name},
 
-    Thank you for your recent order ({feedback_request.order_id}) with {feedback_request.business.name}.
+    Thank you for your recent order ({review_request.order_id}) with {review_request.business.name}.
 
-    We would love to hear about your experience! Please take a moment to share your feedback:
+    We would love to hear about your experience! Please take a moment to share your review:
 
-    {feedback_request.feedback_url}
+    {review_request.review_url}
 
-    Your feedback helps us improve our service and helps other customers make informed decisions.
+    Your review helps us improve our service and helps other customers make informed decisions.
 
     This link will expire in 7 days.
 
     Best regards,
-    {feedback_request.business.name} Team
+    {review_request.business.name} Team
     """
     
     try:
@@ -603,7 +606,7 @@ def send_feedback_email(feedback_request):
             subject,
             message,
             settings.DEFAULT_FROM_EMAIL,
-            [feedback_request.customer_email],
+            [review_request.customer_email],
             fail_silently=False,
         )
         return True
@@ -612,20 +615,20 @@ def send_feedback_email(feedback_request):
         return False
 
 
-def notify_moderation_team(feedback):
-    """Notify moderation team about negative feedback"""
+def notify_moderation_team(review):
+    """Notify moderation team about negative review"""
     
-    subject = f"Negative Feedback Alert - {feedback.business.name}"
+    subject = f"Negative Review Alert - {review.business.name}"
     
     message = f"""
-    A negative feedback has been received for {feedback.business.name}.
+    A negative review has been received for {review.business.name}.
 
-    Order ID: {feedback.feedback_request.order_id}
-    Customer: {feedback.feedback_request.customer_name}
-    Rating: {feedback.overall_rating}/5
-    Comment: {feedback.negative_comment}
+    Order ID: {review.review_request.order_id}
+    Customer: {review.review_request.customer_name}
+    Rating: {review.overall_rating}/5
+    Comment: {review.negative_comment}
 
-    This feedback will auto-publish in 7 days if no action is taken.
+    This review will auto-publish in 7 days if no action is taken.
 
     Please review in the admin panel.
     """

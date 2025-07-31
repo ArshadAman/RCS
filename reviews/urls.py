@@ -27,8 +27,8 @@ from .daily_sales_views import (
     get_sales_reports,
     submit_feedback,
     get_feedback_requests,
-    get_customer_feedback,
-    respond_to_feedback,
+    get_customer_reviews,
+    respond_to_review,
     dashboard_stats,
 )
 
@@ -58,13 +58,13 @@ urlpatterns = [
     path('submit-review/<str:token>/', submit_public_review, name='submit-review'),
     path('widget-data/<int:user_id>/', widget_data, name='widget-data'),
     
-    # Daily Sales Reports & Feedback System
+    # Daily Sales Reports & Review System
     path('sales-report/upload/', upload_sales_report, name='upload-sales-report'),
     path('sales-reports/', get_sales_reports, name='sales-reports'),
     path('feedback/<uuid:token>/', submit_feedback, name='submit-feedback'),
-    path('feedback-requests/', get_feedback_requests, name='feedback-requests'),
-    path('customer-feedback/', get_customer_feedback, name='customer-feedback'),
-    path('feedback/<int:feedback_id>/respond/', respond_to_feedback, name='respond-feedback'),
+    path('review-requests/', get_feedback_requests, name='review-requests'),
+    path('customer-reviews/', get_customer_reviews, name='customer-reviews'),
+    path('review/<int:review_id>/respond/', respond_to_review, name='respond-review'),
     path('dashboard/stats/', dashboard_stats, name='dashboard-stats'),
     
     # Consolidated endpoints
