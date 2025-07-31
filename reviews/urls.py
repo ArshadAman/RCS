@@ -21,6 +21,17 @@ from .views import (
     widget_view,
 )
 
+# Daily Sales Report views
+from .daily_sales_views import (
+    upload_sales_report,
+    get_sales_reports,
+    submit_feedback,
+    get_feedback_requests,
+    get_customer_feedback,
+    respond_to_feedback,
+    dashboard_stats,
+)
+
 urlpatterns = [
     # Business (single per user)
     path('business/', business_view, name='business'),
@@ -46,6 +57,15 @@ urlpatterns = [
     path('review-form/<str:token>/', public_review_form, name='review-form'),
     path('submit-review/<str:token>/', submit_public_review, name='submit-review'),
     path('widget-data/<int:user_id>/', widget_data, name='widget-data'),
+    
+    # Daily Sales Reports & Feedback System
+    path('sales-report/upload/', upload_sales_report, name='upload-sales-report'),
+    path('sales-reports/', get_sales_reports, name='sales-reports'),
+    path('feedback/<uuid:token>/', submit_feedback, name='submit-feedback'),
+    path('feedback-requests/', get_feedback_requests, name='feedback-requests'),
+    path('customer-feedback/', get_customer_feedback, name='customer-feedback'),
+    path('feedback/<int:feedback_id>/respond/', respond_to_feedback, name='respond-feedback'),
+    path('dashboard/stats/', dashboard_stats, name='dashboard-stats'),
     
     # Consolidated endpoints
     path('payment/', payment_view, name='payment'),  # Handles all payment actions via ?action= or POST action

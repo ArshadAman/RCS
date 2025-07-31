@@ -3,7 +3,8 @@ from django.db import transaction
 from .models import (
     Business, Review, ReviewImage, ReviewLike, Category, Order, 
     SurveyQuestion, Plan, Badge, QRFeedback, ReviewAnswer, ReviewCriteria,
-    ReviewCriteriaRating, EmailTemplate, WidgetSettings, Payment
+    ReviewCriteriaRating, EmailTemplate, WidgetSettings, Payment,
+    DailySalesReport, FeedbackRequest, CustomerFeedback
 )
 from authentication.serializers import UserProfileSerializer
 
@@ -270,3 +271,183 @@ class PaymentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Payment
         fields = '__all__'
+
+
+class DailySalesReportSerializer(serializers.ModelSerializer):
+    """Serializer for Daily Sales Report"""
+    
+    business_name = serializers.CharField(source='business.name', read_only=True)
+    success_rate = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = DailySalesReport
+        fields = [
+            'id', 'business_name', 'report_date', 'file_name', 'upload_method',
+            'total_orders', 'processed_orders', 'emails_sent', 'status',
+            'success_rate', 'error_log', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at', 'business_name', 'success_rate']
+    
+    def get_success_rate(self, obj):
+        if obj.total_orders == 0:
+            return 0
+        return round((obj.processed_orders / obj.total_orders) * 100, 1)
+
+
+class SalesReportUploadSerializer(serializers.Serializer):
+    """Serializer for sales report upload"""
+    
+    report_date = serializers.DateField()
+    orders = serializers.ListField(
+        child=serializers.DictField(
+            child=serializers.CharField(max_length=255)
+        ),
+        min_length=1
+    )
+    
+    def validate_orders(self, value):
+        """Validate order data structure"""
+        required_fields = ['order_id', 'customer_name', 'email']
+        
+        for i, order in enumerate(value):
+            for field in required_fields:
+                if field not in order or not order[field]:
+                    raise serializers.ValidationError(
+                        f"Order {i+1}: '{field}' is required and cannot be empty"
+                    )
+            
+            # Validate email format
+            email = order.get('email', '')
+            if '@' not in email or '.' not in email:
+                raise serializers.ValidationError(
+                    f"Order {i+1}: Invalid email format '{email}'"
+                )
+        
+        return value
+
+
+class FeedbackRequestSerializer(serializers.ModelSerializer):
+    """Serializer for Feedback Request"""
+    
+    business_name = serializers.CharField(source='business.name', read_only=True)
+    days_remaining = serializers.SerializerMethodField()
+    is_expired = serializers.ReadOnlyField()
+    
+    class Meta:
+        model = FeedbackRequest
+        fields = [
+            'id', 'business_name', 'order_id', 'customer_name', 'customer_email',
+            'customer_phone', 'status', 'email_sent_at', 'responded_at',
+            'expires_at', 'days_remaining', 'is_expired', 'created_at', 'email_token'
+        ]
+        read_only_fields = ['id', 'created_at', 'business_name', 'days_remaining', 'is_expired', 'email_token']
+    
+    def get_days_remaining(self, obj):
+        from django.utils import timezone
+        if obj.status == 'responded':
+            return 0
+        remaining = obj.expires_at - timezone.now()
+        return max(0, remaining.days)
+
+
+class CustomerFeedbackSerializer(serializers.ModelSerializer):
+    """Serializer for Customer Feedback"""
+    
+    business_name = serializers.CharField(source='business.name', read_only=True)
+    customer_name = serializers.CharField(source='feedback_request.customer_name', read_only=True)
+    customer_email = serializers.CharField(source='feedback_request.customer_email', read_only=True)
+    order_id = serializers.CharField(source='feedback_request.order_id', read_only=True)
+    display_color = serializers.ReadOnlyField()
+    is_positive = serializers.ReadOnlyField()
+    should_auto_publish = serializers.ReadOnlyField()
+    
+    class Meta:
+        model = CustomerFeedback
+        fields = [
+            'id', 'business_name', 'customer_name', 'customer_email', 'order_id',
+            'would_recommend', 'logistics_rating', 'communication_rating',
+            'website_usability_rating', 'positive_comment', 'negative_comment',
+            'overall_rating', 'status', 'store_response', 'response_date',
+            'auto_publish_date', 'is_auto_published', 'display_color',
+            'is_positive', 'should_auto_publish', 'moderation_notes',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = [
+            'id', 'overall_rating', 'auto_publish_date', 'response_date',
+            'business_name', 'customer_name', 'customer_email', 'order_id',
+            'display_color', 'is_positive', 'should_auto_publish',
+            'created_at', 'updated_at'
+        ]
+    
+    def validate(self, attrs):
+        """Validate feedback based on recommendation"""
+        would_recommend = attrs.get('would_recommend')
+        negative_comment = attrs.get('negative_comment', '')
+        
+        if not would_recommend:
+            # Negative feedback requires detailed comment
+            if not negative_comment or len(negative_comment.strip()) < 50:
+                raise serializers.ValidationError({
+                    'negative_comment': 'Negative feedback must include a detailed comment (minimum 50 characters)'
+                })
+        
+        return attrs
+
+
+class FeedbackSubmissionSerializer(serializers.Serializer):
+    """Serializer for customer feedback submission via email link"""
+    
+    would_recommend = serializers.BooleanField()
+    
+    # Optional sub-ratings (for positive feedback)
+    logistics_rating = serializers.IntegerField(min_value=1, max_value=5, required=False)
+    communication_rating = serializers.IntegerField(min_value=1, max_value=5, required=False)
+    website_usability_rating = serializers.IntegerField(min_value=1, max_value=5, required=False)
+    
+    # Comments
+    positive_comment = serializers.CharField(max_length=1000, required=False, allow_blank=True)
+    negative_comment = serializers.CharField(max_length=1000, required=False, allow_blank=True)
+    
+    def validate(self, attrs):
+        """Validate feedback submission"""
+        would_recommend = attrs.get('would_recommend')
+        negative_comment = attrs.get('negative_comment', '')
+        
+        if not would_recommend:
+            # Negative feedback requires detailed comment
+            if not negative_comment or len(negative_comment.strip()) < 50:
+                raise serializers.ValidationError({
+                    'negative_comment': 'For negative feedback, please provide a detailed comment (minimum 50 characters) to help us improve.'
+                })
+        
+        return attrs
+
+
+class FeedbackResponseSerializer(serializers.ModelSerializer):
+    """Serializer for store response to feedback"""
+    
+    class Meta:
+        model = CustomerFeedback
+        fields = ['store_response']
+    
+    def validate_store_response(self, value):
+        if not value or len(value.strip()) < 10:
+            raise serializers.ValidationError("Response must be at least 10 characters long")
+        return value
+
+
+class DashboardStatsSerializer(serializers.Serializer):
+    """Serializer for dashboard statistics"""
+    
+    total_feedback_requests = serializers.IntegerField()
+    pending_responses = serializers.IntegerField()
+    positive_feedback = serializers.IntegerField()
+    negative_feedback = serializers.IntegerField()
+    auto_publish_pending = serializers.IntegerField()
+    average_rating = serializers.FloatField()
+    response_rate = serializers.FloatField()
+    
+    # Recent activity
+    recent_reports = DailySalesReportSerializer(many=True)
+    recent_feedback = CustomerFeedbackSerializer(many=True)
+    pending_moderation = CustomerFeedbackSerializer(many=True)
